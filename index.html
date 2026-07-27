@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>letterng</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+:root{
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --card: #0c0c0f;
+  --ink: #15161a;
+  --muted: #8a8d94;
+  --border: #e8e8eb;
+  --pink: #ff3d7f;
+  --pink-light: #ffb3cd;
+  --pink-glow: rgba(255,61,127,0.25);
+  --secondary-text: #6b6d75;
+  --points-pill-bg: #f4f4f2;
+  --mini-tile-bg: #f1f1ee;
+  --mini-tile-color: #b6b4ab;
+  --switch-track-off: #dcdce0;
+  --mini-hit-bg: #15161a;
+  --mini-hit-text: #ffffff;
+
+  --common-bg: #f1f2f4;  --common-text: #63666d;
+  --uncommon-bg: #e1f6ea; --uncommon-text: #1f8a4c;
+  --rare-bg: #e8edff;     --rare-text: #3552e0;
+  --legendary-bg: #fbe9ff; --legendary-text: #a729d6;
+  --culture-bg: #e3edff;  --culture-text: #2e5cd8;
+}
+
+body.dark{
+  --bg: #101014;
+  --surface: #1b1b21;
+  --card: #050507;
+  --ink: #f2f2f5;
+  --muted: #9a9ca5;
+  --border: #2c2c33;
+  --pink: #9498a3;
+  --pink-light: #cdd0d8;
+  --pink-glow: rgba(148,152,163,0.25);
+  --secondary-text: #a7a9b2;
+  --points-pill-bg: #232329;
+  --mini-tile-bg: #232329;
+  --mini-tile-color: #6f7178;
+  --switch-track-off: #3a3a42;
+  --mini-hit-bg: #f2f2f5;
+  --mini-hit-text: #101014;
+
+  --common-bg: #202127;  --common-text: #b7b9c0;
+  --uncommon-bg: #123021; --uncommon-text: #4ade80;
+  --rare-bg: #161f3a;     --rare-text: #8da2ff;
+  --legendary-bg: #2a1030; --legendary-text: #e08eff;
+  --culture-bg: #142544;  --culture-text: #7ea6ff;
+}
+
+*{ box-sizing: border-box; }
+
+body{
+  margin:0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding: 28px 16px 80px;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
+
+.topbar{
+  width:100%;
+  max-width: 480px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom: 34px;
+}
+.wordmark{
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+}
+.wordmark span{ color: var(--pink); }
+.tag{
+  font-size: 0.68rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.topbar-right{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
+}
+.switch{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+  user-select:none;
+}
+.switch-label{
+  font-size:0.62rem;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  color: var(--muted);
+  min-width: 62px;
+  text-align:right;
+}
+.switch input{
+  position:absolute;
+  opacity:0;
+  width:0;
+  height:0;
+}
+.switch-track{
+  width:34px;
+  height:18px;
+  border-radius:999px;
+  background: var(--switch-track-off);
+  position:relative;
+  transition:background 0.2s ease;
+  flex-shrink:0;
+}
+.switch-thumb{
+  position:absolute;
+  top:2px;
+  left:2px;
+  width:14px;
+  height:14px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 1px 2px rgba(0,0,0,0.25);
+  transition:transform 0.2s ease;
+}
+.switch input:checked + .switch-track{ background: var(--pink); }
+.switch input:checked + .switch-track .switch-thumb{ transform:translateX(16px); }
+.switch.disabled{
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.speed-control{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  transition: opacity 0.2s ease;
+}
+.speed-control.hidden{
+  display:none;
+}
+.speed-label{
+  font-size: 0.68rem;
+  color: var(--muted);
+  white-space: nowrap;
+  min-width: 30px;
+  text-align: right;
+}
+.speed-slider{
+  -webkit-appearance: none;
+  appearance: none;
+  width: 64px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--switch-track-off);
+  outline: none;
+  cursor: pointer;
+}
+.speed-slider::-webkit-slider-thumb{
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--pink);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  cursor: pointer;
+}
+.speed-slider::-moz-range-track{
+  background: var(--switch-track-off);
+  height: 4px;
+  border-radius: 999px;
+}
+.speed-slider::-moz-range-thumb{
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--pink);
+  border: 2px solid var(--surface);
+  cursor: pointer;
+}
+
+/* ---------- game card ---------- */
+.game-card{
+  width:100%;
+  max-width: 480px;
+  background: var(--card);
+  border-radius: 26px;
+  padding: 34px 30px 28px;
+  position: relative;
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,0.35);
+}
+
+.game-title{
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 2.6rem;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.game-sub{
+  color: #a3a5ad;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin-top: 10px;
+  max-width: 320px;
+}
+
+.tiles{
+  display:flex;
+  gap: 10px;
+  margin: 30px 0 26px;
+}
+
+.tile{
+  flex:1;
+  aspect-ratio: 1;
+  background: #f2f1ee;
+  border-radius: 14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1.9rem;
+  color: #17181c;
+  position: relative;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.12) inset, 0 6px 14px rgba(0,0,0,0.25);
+  transition: transform 0.12s ease;
+}
+.tile.spinning{ color: #b9b7ae; }
+.tile.locked{
+  box-shadow: 0 0 0 2px var(--pink), 0 6px 14px var(--pink-glow);
+}
+
+.card-footer{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+}
+
+.hint{
+  font-size: 0.72rem;
+  color: #6b6d75;
+  max-width: 190px;
+  line-height: 1.5;
+}
+
+.roll-btn{
+  --ring: conic-gradient(from 0deg, var(--pink), var(--pink-light), var(--pink));
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  padding: 4px;
+  background: var(--ring);
+  border: none;
+  cursor: pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+}
+.roll-btn:disabled{ opacity: 0.55; cursor: default; }
+.roll-btn-inner{
+  width:100%;
+  height:100%;
+  border-radius: 50%;
+  background: var(--card);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: #fff;
+}
+
+/* ---------- score plate ---------- */
+.scorepanel{
+  width:100%;
+  max-width: 480px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  margin-top: 30px;
+}
+
+.plate{
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 30px;
+  min-width: 180px;
+  text-align:center;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+}
+.plate-num{
+  font-family:'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 2.1rem;
+  letter-spacing: 0.02em;
+  display: inline-block;
+}
+.plate-num.bump{
+  animation: scoreBump 0.36s cubic-bezier(.34,1.56,.64,1);
+  color: var(--pink);
+}
+@keyframes scoreBump{
+  0%{ transform: scale(1); }
+  35%{ transform: scale(1.28); }
+  100%{ transform: scale(1); }
+}
+.plate-label{
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.stat-row{
+  display:flex;
+  gap: 26px;
+  margin-top: 14px;
+}
+.stat{
+  text-align:center;
+}
+.stat b{
+  display:block;
+  font-family:'Space Grotesk', sans-serif;
+  font-size: 1.1rem;
+}
+.stat span{
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* ---------- badge breakdown ---------- */
+.breakdown{
+  width:100%;
+  max-width: 480px;
+  margin-top: 36px;
+}
+.breakdown-head{
+  text-align:center;
+  margin-bottom: 16px;
+}
+.breakdown-title{
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 0.98rem;
+  letter-spacing: 0.02em;
+}
+.breakdown-sub{
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+
+.badge-card{
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.badge-card.r-uncommon{
+  border-color: var(--uncommon-text);
+  box-shadow: 0 0 0 1px var(--uncommon-text) inset;
+}
+.badge-card.r-rare{
+  border-color: var(--rare-text);
+  box-shadow: 0 0 0 1px var(--rare-text) inset;
+}
+.badge-card.r-legendary{
+  border-color: var(--legendary-text);
+  box-shadow: 0 0 0 1px var(--legendary-text) inset;
+}
+.badge-card.culture-badge,
+.badge-card.r-culture{
+  border-color: var(--culture-text);
+  box-shadow: 0 0 0 1px var(--culture-text) inset;
+}
+
+.badge-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+}
+.badge-titles{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+}
+.badge-icon{ font-size: 0.95rem; }
+.badge-name{
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
+}
+.rarity-pill{
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.rarity-common{ background: var(--common-bg); color: var(--common-text); }
+.rarity-uncommon{ background: var(--uncommon-bg); color: var(--uncommon-text); }
+.rarity-rare{ background: var(--rare-bg); color: var(--rare-text); }
+.rarity-legendary{ background: var(--legendary-bg); color: var(--legendary-text); }
+.rarity-culture{ background: var(--culture-bg); color: var(--culture-text); }
+
+.points-pill{
+  font-family:'IBM Plex Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--points-pill-bg);
+  padding: 3px 9px;
+  border-radius: 8px;
+  white-space:nowrap;
+}
+
+.badge-desc{
+  font-size: 0.76rem;
+  color: var(--secondary-text);
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
+.mini-tiles{
+  display:flex;
+  gap: 5px;
+  margin-top: 10px;
+}
+.mini-tile{
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--mini-tile-bg);
+  color: var(--mini-tile-color);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+.mini-tile.hit{
+  background: var(--mini-hit-bg);
+  color: var(--mini-hit-text);
+}
+
+.empty-state{
+  text-align:center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 20px 0;
+}
+
+/* ---------- recent rolls ---------- */
+.recent{
+  width:100%;
+  max-width: 480px;
+  margin-top: 30px;
+  display:flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content:center;
+}
+.recent-chip{
+  font-family:'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 11px;
+  color: var(--muted);
+  background: var(--surface);
+}
+.recent-chip b{ color: var(--ink); }
+
+.reset-link{
+  font-size: 0.7rem;
+  color: var(--muted);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.menu-row{
+  margin-top: 26px;
+  display:flex;
+  gap: 18px;
+}
+
+/* ---------- modals ---------- */
+.modal-overlay{
+  display:none;
+  position: fixed;
+  inset: 0;
+  background: rgba(10,10,12,0.55);
+  align-items:center;
+  justify-content:center;
+  padding: 20px;
+  z-index: 50;
+}
+.modal-overlay.open{ display:flex; }
+
+.modal-panel{
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 82vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  box-shadow: 0 30px 70px -20px rgba(0,0,0,0.5);
+}
+.modal-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 18px 20px;
+  border-bottom: 1.5px solid var(--border);
+  flex-shrink:0;
+}
+.modal-title{
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+}
+.modal-close{
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+}
+.modal-body{
+  padding: 16px 20px 22px;
+  overflow-y: auto;
+}
+
+.history-entry{
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.history-entry-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom: 6px;
+}
+.history-word{
+  font-family:'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+}
+.history-points{
+  font-family:'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--pink);
+}
+.history-badges{
+  display:flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.history-badge-chip{
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.almanac-entry{
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 10px;
+}
+.almanac-entry.earned{ border-color: var(--uncommon-text); }
+.almanac-left{ flex:1; }
+.almanac-name-row{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.almanac-name{
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+.almanac-desc{
+  font-size: 0.74rem;
+  color: var(--secondary-text);
+  line-height: 1.4;
+}
+.almanac-odds{
+  font-family:'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.almanac-status{
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 999px;
+  flex-shrink:0;
+}
+.almanac-status.yes{ background: var(--uncommon-bg); color: var(--uncommon-text); }
+.almanac-status.no{ background: var(--common-bg); color: var(--muted); }
+
+/* ---------- highscore flash ---------- */
+@keyframes flashHighscore{
+  0%   { background: var(--card); }
+  25%  { background: #ffe14d; box-shadow: 0 0 0 2px #ffe14d, 0 30px 80px -10px rgba(255,225,77,0.55); }
+  60%  { background: #ffe14d; box-shadow: 0 0 0 2px #ffe14d, 0 30px 80px -10px rgba(255,225,77,0.55); }
+  100% { background: var(--card); }
+}
+.game-card.highscore-flash{
+  animation: flashHighscore 2.2s ease-in-out;
+}
+
+/* ---------- staggered badge reveal ---------- */
+.badge-card{
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.badge-card.show{
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.badge-card.announce.show{
+  animation: badgeAnnouncePulse 0.7s ease;
+}
+@keyframes badgeAnnouncePulse{
+  0%   { transform: scale(0.92); box-shadow: 0 0 0 0 rgba(255,61,127,0); }
+  45%  { transform: scale(1.04); box-shadow: 0 0 0 4px rgba(255,61,127,0.25); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,61,127,0); }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wordmark">lette<span>rng</span></div>
+  <div class="topbar-right">
+    <label class="switch" title="Reveal all five tiles together, or one at a time for extra drama">
+      <span class="switch-label" id="switchLabel">one by one</span>
+      <input type="checkbox" id="sequentialToggle" checked>
+      <span class="switch-track"><span class="switch-thumb"></span></span>
+    </label>
+    <div class="speed-control hidden" id="speedControl" title="Time between each letter reveal during quick roll">
+      <span class="speed-label" id="speedLabel">1.0s</span>
+      <input type="range" class="speed-slider" id="speedSlider" min="300" max="2000" step="100" value="1000">
+    </div>
+    <label class="switch" title="Switch between light and dark theme">
+      <span class="switch-label" id="darkModeLabel">light mode</span>
+      <input type="checkbox" id="darkModeToggle">
+      <span class="switch-track"><span class="switch-thumb"></span></span>
+    </label>
+    <div class="tag">letter roll · prototype</div>
+  </div>
+</div>
+
+<div class="game-card">
+  <h1 class="game-title">letterng</h1>
+  <p class="game-sub">Roll five letters. Chase words, patterns, and pure luck across every rule in the book.</p>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="card-footer">
+    <div class="hint">Real words, poker patterns, hidden words, syllables and more all score at once.</div>
+    <button class="roll-btn" id="rollBtn">
+      <div class="roll-btn-inner">ROLL</div>
+    </button>
+  </div>
+</div>
+
+<div class="scorepanel">
+  <div class="plate">
+    <div class="plate-num" id="lastRollScore">0</div>
+    <div class="plate-label">score</div>
+  </div>
+  <div class="stat-row">
+    <div class="stat"><b id="spinCount">0</b><span>rolls</span></div>
+    <div class="stat"><b id="bestScore">0</b><span>best roll</span></div>
+  </div>
+</div>
+
+<div class="breakdown">
+  <div class="breakdown-head">
+    <div class="breakdown-title">BADGE BREAKDOWN</div>
+    <div class="breakdown-sub" id="breakdownSub">Roll to see what you earn</div>
+  </div>
+  <div id="badgeList"></div>
+</div>
+
+<div class="recent" id="recent"></div>
+
+<div class="menu-row">
+  <button class="reset-link" id="openHistoryBtn">history</button>
+  <button class="reset-link" id="openAlmanacBtn">all badges</button>
+  <button class="reset-link" id="resetBtn">reset</button>
+</div>
+
+<div class="modal-overlay" id="historyModal">
+  <div class="modal-panel">
+    <div class="modal-head">
+      <div class="modal-title">Roll history</div>
+      <button class="modal-close" data-close="historyModal">✕</button>
+    </div>
+    <div class="modal-body" id="historyBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="almanacModal">
+  <div class="modal-panel">
+    <div class="modal-head">
+      <div class="modal-title">All badges</div>
+      <button class="modal-close" data-close="almanacModal">✕</button>
+    </div>
+    <div class="modal-body" id="almanacBody"></div>
+  </div>
+</div>
+
+<script>
+/* ================= word lists ================= */
+const W5_EN = new Set(`ABACK ABAFT ABASE ABATE ABBEY ABBOT ABHOR ABIDE ABLER ABODE ABOUT ABOVE ABUSE ABYSS ACHED ACHES ACIDS ACORN ACRES ACRID ACTED ACTOR ACUTE ADAGE ADAPT ADDED ADDER ADEPT ADIEU ADMIT ADOBE ADOPT ADORE ADORN ADULT AEGIS AEONS AFFIX AFIRE AFOOT AFTER AGAIN AGAPE AGATE AGENT AGILE AGING AGLOW AGONY AGREE AHEAD AIDED AIDES AILED AIMED AIRED AISLE ALARM ALBUM ALDER ALERT ALIAS ALIBI ALIEN ALIKE ALIVE ALLAY ALLEY ALLOT ALLOW ALLOY ALOES ALOFT ALONE ALONG ALOOF ALOUD ALPHA ALTAR ALTER ALTOS AMASS AMAZE AMBER AMBLE AMEND AMIGO AMISS AMITY AMONG AMOUR AMPLE AMPLY AMUSE ANGEL ANGER ANGLE ANGRY ANGST ANIME ANKLE ANNEX ANNOY ANNUL ANTES ANTIC ANVIL APACE APART APING APPAL APPLE APPLY APRON APTLY AREAS ARENA ARGUE ARISE ARMED AROMA AROSE ARRAY ARROW ARSON ASHEN ASHES ASIDE ASKED ASKEW ASPEN ASSAY ASSES ASSET ASTER ASTIR ATLAS ATOLL ATOMS ATONE ATTAR ATTIC AUDIO AUDIT AUGER AUGHT AUGUR AUNTS AURAS AUTOS AVAIL AVERS AVERT AVOID AVOWS AWAIT AWAKE AWARD AWARE AWFUL AWOKE AXIOM AXLES AZURE BABEL BABES BACKS BACON BADGE BADLY BAGGY BAITS BAIZE BAKED BAKER BALES BALLS BALMY BANAL BANDS BANDY BANGS BANJO BANKS BANNS BARBS BARDS BARED BARGE BARKS BARNS BARON BASAL BASED BASER BASES BASIC BASIL BASIN BASIS BASSO BASTE BATCH BATED BATHE BATHS BATON BAYOU BEACH BEADS BEADY BEAKS BEAMS BEANS BEARD BEARS BEAST BEAUX BEECH BEETS BEFIT BEGAN BEGAT BEGET BEGIN BEGOT BEGUN BEING BELIE BELLE BELLS BELLY BELOW BELTS BENCH BENDS BERGS BERRY BERTH BERYL BESET BESOM BEVEL BIBLE BIDED BIDES BIGHT BIGOT BILGE BILLS BILLY BINDS BIPED BIRCH BIRDS BIRTH BISON BITCH BITES BLACK BLADE BLAME BLAND BLANK BLARE BLAST BLAZE BLEAK BLEAT BLEED BLEND BLENT BLESS BLEST BLIND BLINK BLISS BLOCK BLOCS BLOND BLOOD BLOOM BLOTS BLOWN BLOWS BLUER BLUES BLUFF BLUNT BLURT BLUSH BOARD BOARS BOAST BOATS BODED BODES BOGGY BOGUS BOILS BOLES BOLTS BOMBS BONDS BONED BONES BONNY BONUS BOOBY BOOKS BOOMS BOONS BOORS BOOST BOOTH BOOTS BOOTY BOOZE BORAX BORED BORES BORNE BOSOM BOUGH BOUND BOUTS BOWED BOWEL BOWER BOWLS BOXED BOXER BOXES BRACE BRAGS BRAID BRAIN BRAKE BRAND BRASS BRATS BRAVE BRAVO BRAWL BRAWN BREAD BREAK BREED BRIAR BRIBE BRICK BRIDE BRIEF BRIER BRIGS BRIMS BRINE BRING BRINK BRINY BRISK BROAD BROIL BROKE BROOD BROOK BROOM BROTH BROWN BROWS BRUIN BRUNT BRUSH BRUTE BUCKS BUDGE BUGGY BUGLE BUILD BUILT BULBS BULGE BULKS BULKY BULLS BULLY BUMPS BUNCH BUNKS BUOYS BURLY BURNS BURNT BURRO BURRS BURST BUSHY BUSTS BUTTE BUTTS BUXOM BUYER CABAL CABBY CABIN CABLE CACAO CACHE CADET CADRE CAGED CAGES CAIRN CAKED CAKES CALLS CALMS CALYX CAMEL CAMEO CAMPS CANAL CANDY CANES CANNY CANOE CANON CANTO CAPER CAPES CAPON CARDS CARED CARES CARGO CAROL CARRY CARTS CARVE CASED CASES CASKS CASTE CASTS CATCH CATER CAUSE CAVED CAVES CAVIL CEASE CEDAR CEDED CELLS CENTS CHAFE CHAFF CHAIN CHAIR CHALK CHAMP CHANT CHAOS CHAPS CHARM CHART CHARY CHASE CHASM CHATS CHEAP CHEAT CHECK CHEEK CHEER CHEFS CHESS CHEST CHICK CHIDE CHIEF CHILD CHILL CHIME CHINA CHINK CHINS CHIPS CHIRP CHOIR CHOKE CHOPS CHORD CHOSE CHUCK CHUMP CHUMS CHUNK CHURL CHURN CHUTE CIDER CIGAR CINCH CIRCA CITED CITES CIVET CIVIC CIVIL CLACK CLAIM CLAMP CLAMS CLANG CLANK CLANS CLAPS CLASH CLASP CLASS CLAWS CLEAN CLEAR CLEFS CLEFT CLERK CLEWS CLICK CLIFF CLIMB CLIME CLING CLINK CLIPS CLOAK CLOCK CLODS CLOGS CLOSE CLOTH CLOUD CLOUT CLOVE CLOWN CLUBS CLUCK CLUES CLUMP CLUNG COACH COALS COAST COATS COBRA COCKS COCOA CODES COILS COINS COLDS COLIC COLON COLTS COMBS COMER COMES COMET COMIC COMMA CONCH CONES CONIC COOED COOKS COOLS COPRA COPSE CORAL CORDS CORES CORKS CORNS CORPS COSTS COTES COUCH COUGH COULD COUNT COUPE COUPS COURT COVER COVES COVET COVEY COWED COWER COYLY COZEN CRABS CRACK CRAFT CRAGS CRAMP CRANE CRANK CRAPE CRASH CRASS CRATE CRAVE CRAWL CRAZE CRAZY CREAK CREAM CREDO CREED CREEK CREEP CREPE CREPT CRESS CREST CREWS CRIBS CRICK CRIED CRIER CRIES CRIME CRIMP CRISP CROAK CROCK CRONE CRONY CROOK CROPS CROSS CROUP CROWD CROWN CROWS CRUDE CRUEL CRUMB CRUSH CRUST CRYPT CUBES CUBIC CUBIT CUFFS CULTS CURDS CURED CURES CURLS CURLY CURRY CURSE CURST CURVE CYCLE CYNIC DADDY DAILY DAIRY DAISY DALES DALLY DAMES DAMPS DANCE DANDY DARED DARES DARTS DATED DATES DATUM DAUBS DAUNT DAWNS DAZED DEALS DEALT DEANS DEARS DEATH DEBAR DEBIT DEBTS DEBUT DECAY DECKS DECOY DECRY DEEDS DEEMS DEEPS DEFER DEIGN DEITY DELAY DELLS DELTA DELVE DEMON DEMUR DENSE DENTS DEPOT DEPTH DERBY DESKS DETER DEUCE DEVIL DIARY DICED DICES DICTA DIETS DIGIT DIKES DIMES DIMLY DINED DINER DINES DINGY DIRGE DIRTY DISCS DISKS DITCH DITTO DITTY DIVAN DIVED DIVER DIVES DIZZY DOCKS DODGE DOERS DOGMA DOING DOLED DOLLS DOMED DOMES DONOR DOOMS DOORS DOSED DOSES DOTED DOTES DOUBT DOUGH DOVES DOWDY DOWNS DOWNY DOWRY DOZED DOZEN DRAFT DRAGS DRAIN DRAKE DRAMA DRAMS DRANK DRAPE DRAWL DRAWN DRAWS DRAYS DREAD DREAM DREGS DRESS DRIED DRIER DRIES DRIFT DRILL DRILY DRINK DRIPS DRIVE DROLL DRONE DROOP DROPS DROSS DROVE DROWN DRUGS DRUMS DRUNK DRYLY DUCAL DUCAT DUCHY DUCKS DUCTS DUELS DUETS DUKES DULLY DUMMY DUMPS DUMPY DUNCE DUNES DUNNO DUPED DUPES DUSKY DUSTY DWARF DWELL DWELT DYING DYKES EAGER EAGLE EARLS EARLY EARNS EARTH EASED EASEL EASES EATEN EATER EAVES EBBED EBONY EDGED EDGES EDICT EDIFY EERIE EGGED EIGHT EJECT ELATE ELBOW ELDER ELECT ELEGY ELFIN ELITE ELOPE ELUDE ELVES EMAIL EMITS EMPTY ENACT ENDED ENDOW ENEMY ENJOY ENNUI ENROL ENSUE ENTER ENTRY ENVOY EPICS EPOCH EQUAL EQUIP ERASE ERECT ERRED ERROR ESSAY ETHER ETHIC EVADE EVENT EVERY EVILS EVOKE EXACT EXALT EXCEL EXERT EXILE EXIST EXITS EXPEL EXTOL EXTRA EXULT EYING EYRIE FABLE FACED FACES FACTS FADED FADES FAILS FAINT FAIRS FAIRY FAITH FAKIR FALLS FALSE FAMED FANCY FANGS FARCE FARED FARES FARMS FASTS FATAL FATED FATES FATTY FAULT FAUNA FAUNS FAWNS FEARS FEAST FEATS FEEDS FEELS FEIGN FEINT FELLS FELON FENCE FERAL FERNS FERRY FETCH FETED FETID FETUS FEUDS FEVER FEWER FICHE FIEFS FIELD FIEND FIERY FIFES FIFTH FIFTY FIGHT FILCH FILED FILES FILET FILLS FILLY FILMS FILMY FILTH FINAL FINCH FINDS FINED FINER FINES FINIS FINNY FIORD FIRED FIRES FIRMS FIRST FISHY FISTS FITLY FIVES FIXED FIXER FIXES FJORD FLAGS FLAIL FLAIR FLAKE FLAKY FLAME FLANK FLAPS FLARE FLASH FLASK FLATS FLAWS FLEAS FLECK FLEES FLEET FLESH FLICK FLIER FLIES FLING FLINT FLIRT FLITS FLOAT FLOCK FLOES FLOOD FLOOR FLORA FLOSS FLOUR FLOUT FLOWN FLOWS FLUES FLUFF FLUID FLUKE FLUME FLUNG FLUSH FLUTE FLYER FOAMS FOAMY FOCAL FOCUS FOGGY FOILS FOIST FOLDS FOLIO FOLKS FOLLY FOODS FOOLS FORAY FORCE FORDS FORGE FORGO FORKS FORMS FORTE FORTH FORTS FORTY FORUM FOUND FOUNT FOURS FOWLS FOXES FOYER FRAIL FRAME FRANC FRANK FRAUD FREAK FREED FREER FREES FRESH FRETS FRIAR FRIED FRILL FRISK FROCK FROGS FROND FRONT FROST FROTH FROWN FROZE FRUIT FUDGE FUELS FUGUE FULLY FUMED FUMES FUNDS FUNGI FUNNY FURRY FURZE FUSED FUSES FUSSY FUZZY GABLE GAILY GAINS GALES GALLS GAMES GAMIN GAMMA GAMUT GANGS GAPED GAPES GASES GASPS GATES GAUDY GAUGE GAUNT GAUZE GAUZY GAVEL GAWKY GAYER GAYLY GAZED GAZER GAZES GEARS GEESE GENIE GENII GENRE GENTS GENUS GERMS GHOST GIANT GIBES GIDDY GIFTS GILDS GILLS GIMME GIPSY GIRDS GIRLS GIRTH GIVEN GIVES GLADE GLAND GLARE GLASS GLAZE GLEAM GLEAN GLENS GLIDE GLINT GLOAT GLOBE GLOOM GLORY GLOSS GLOVE GLOWS GLUED GNASH GNATS GNAWS GNOME GOADS GOALS GOATS GODLY GOING GOLLY GONGS GONNA GOODS GOODY GOOSE GORED GORGE GORSE GOTTA GOUGE GOURD GOUTY GOWNS GRABS GRACE GRADE GRAFT GRAIN GRAMS GRAND GRANT GRAPE GRAPH GRASP GRASS GRATE GRAVE GRAVY GRAZE GREAT GREED GREEN GREET GREYS GRIEF GRILL GRIME GRIMY GRIND GRINS GRIPE GRIPS GRIST GROAN GROIN GROOM GROPE GROSS GROUP GROVE GROWL GROWN GROWS GRUBS GRUEL GRUFF GRUNT GUANO GUARD GUESS GUEST GUIDE GUILD GUILE GUILT GUISE GULCH GULFS GULLS GULLY GUMMY GUSTO GUSTS GUSTY GYPSY HABIT HACKS HAILS HAIRS HAIRY HALED HALLS HALTS HALVE HANDS HANDY HANGS HAPPY HARDY HAREM HARES HARMS HARPS HARPY HARRY HARSH HARTS HASTE HASTY HATCH HATED HATER HAULS HAVEN HAVOC HAWKS HAZEL HEADS HEADY HEALS HEAPS HEARD HEARS HEART HEATH HEATS HEAVE HEAVY HEDGE HEEDS HEELS HEIRS HELIX HELLO HELMS HELPS HENCE HERBS HERDS HERON HEROS HEWED HIDES HILLS HILLY HILTS HINDS HINGE HINTS HIRED HIRES HITCH HIVES HOARD HOARY HOBBY HOIST HOLDS HOLES HOLLY HOMES HONEY HOODS HOOFS HOOKS HOOPS HOOTS HOPED HOPES HORDE HORNS HORNY HORSE HOSTS HOTEL HOTLY HOUND HOURS HOUSE HOVEL HOVER HOWLS HULKS HULLS HUMAN HUMID HUMPS HUMUS HUNCH HUNTS HURLS HURRY HURTS HUSKS HUSKY HUSSY HYDRA HYENA HYMNS ICILY ICING IDEAL IDEAS IDIOM IDIOT IDLED IDLER IDOLS IDYLL IGLOO IMAGE IMBUE IMPEL IMPLY INANE INCUR INDEX INEPT INERT INFER INGOT INLET INNER INTER INURE IRATE IRKED IRONS IRONY ISLES ISLET ISSUE ITEMS IVORY JACKS JADED JAILS JAUNT JEANS JEERS JELLY JERKS JERKY JESTS JETTY JEWEL JIFFY JOINS JOINT JOKED JOKER JOKES JOLLY JOUST JOYED JUDGE JUICE JUICY JUMPS JUNKS JUNTA JUROR KARMA KEELS KEEPS KETCH KEYED KHAKI KICKS KILLS KINDA KINDS KINGS KIOSK KITES KNACK KNAVE KNEAD KNEEL KNEES KNELL KNELT KNIFE KNITS KNOBS KNOCK KNOLL KNOTS KNOWN KNOWS LABEL LACED LACES LACKS LADEN LADLE LAGER LAIRS LAITY LAKES LAMBS LAMED LAMES LAMPS LANCE LANDS LANES LANKY LAPEL LAPSE LARCH LARGE LARGO LARKS LARVA LASSO LASTS LATCH LATER LATHE LATHS LAUGH LAWNS LAYER LEADS LEAFY LEAKS LEAKY LEANS LEAPS LEAPT LEARN LEASE LEASH LEAST LEAVE LEDGE LEECH LEEKS LEGAL LEMME LEMON LENDS LEPER LEVEE LEVEL LEVER LIARS LIBEL LICKS LIEGE LIENS LIFTS LIGHT LIKED LIKEN LIKER LIKES LILAC LIMBO LIMBS LIMES LIMIT LINED LINEN LINER LINES LINGO LINKS LIONS LISTS LITHE LIVED LIVER LIVES LIVID LLAMA LOADS LOAMY LOANS LOATH LOBBY LOBES LOCAL LOCKS LOCUS LODGE LOFTY LOGES LOGIC LOGIN LOINS LONGS LOOKS LOOMS LOONS LOOPS LOOSE LORDS LOSER LOSES LOTUS LOUSE LOUSY LOVED LOVER LOVES LOWED LOWER LOWLY LOYAL LUCID LUCKY LULLS LUMPS LUMPY LUNAR LUNCH LUNGE LUNGS LURCH LURED LURES LURID LURKS LUSTS LUSTY LUTES LYING LYMPH LYNCH LYRIC MACES MADAM MADLY MAGIC MAIDS MAILS MAINS MAIZE MAJOR MAKER MAKES MALES MAMMA MANES MANGA MANGE MANGO MANGY MANIA MANLY MANNA MANOR MANSE MAPLE MARCH MARES MARKS MARRY MARSH MARTS MASKS MASON MASTS MATCH MATED MATES MAUVE MAXIM MAYBE MAYOR MAZES MEALS MEALY MEANS MEANT MEATS MEDAL MEDIA MEETS MELON MELTS MEMES MENDS MENUS MERCY MERES MERGE MERIT MERRY MESAS METAL METED METER MEWED MIDST MIENS MIGHT MILCH MILES MILKY MILLS MIMES MIMIC MINCE MINDS MINED MINER MINES MINOR MINTS MINUS MIRTH MISER MISTS MITES MIXED MIXES MOANS MOATS MOCKS MODEL MODEM MODES MOIST MOLAR MOLES MOMMA MONEY MONKS MONTH MOODS MOODY MOONS MOORS MOOSE MOPED MORAL MORES MOSSY MOTES MOTHS MOTIF MOTOR MOTTO MOUND MOUNT MOURN MOUSE MOUTH MOVED MOVER MOVES MOVIE MOWED MOWER MUCUS MUDDY MULES MULTI MUMMY MUMPS MUNCH MURAL MURKY MUSED MUSES MUSIC MUSKY MUSTY MUTED MUTES MYRRH MYTHS NABOB NAILS NAIVE NAKED NAMED NAMES NASAL NASTY NATAL NATTY NAVAL NAVEL NAVES NEARS NECKS NEEDS NEEDY NEIGH NERVE NESTS NEVER NEWER NEWLY NICER NICHE NIECE NIGHT NINNY NOBLE NOBLY NOISE NOISY NOMAD NONCE NOOKS NOOSE NORTH NOSED NOSES NOTCH NOTED NOTES NOUNS NOVEL NUDGE NURSE NYMPH OAKEN OAKUM OASES OASIS OATEN OATHS OBESE OBEYS OCCUR OCEAN OCHRE ODDER ODDLY ODIUM OFFAL OFFER OFTEN OILED OLDEN OLDER OMENS OMITS ONION ONSET OOZED OOZES OPALS OPENS OPERA OPINE OPIUM OPTIC ORBIT ORDER ORGAN OSIER OTHER OTTER OUGHT OUNCE OUTDO OUTER OVALS OVARY OVENS OVERT OWING OWNED OWNER OXIDE OZONE PACES PACKS PADDY PADRE PAEAN PAGAN PAGES PAILS PAINS PAINT PAIRS PALED PALER PALES PALMS PALMY PALSY PANEL PANES PANGS PANIC PANSY PANTS PAPAL PAPAS PAPER PARED PARKA PARKS PARRY PARSE PARTS PARTY PASHA PASTE PASTY PATCH PATES PATHS PATIO PAUSE PAVED PAWED PAWNS PAYED PAYER PEACE PEACH PEAKS PEALS PEARL PEARS PEASE PECKS PEDAL PEEPS PEERS PELTS PENAL PENCE PENIS PENNY PEONS PERCH PERIL PESKY PESOS PESTS PETAL PETTY PHASE PHIAL PHONE PHOTO PIANO PICKS PIECE PIERS PIETY PIGMY PIKES PILED PILES PILLS PILOT PINCH PINED PINES PINKS PINTO PINTS PIOUS PIPED PIPER PIPES PIQUE PITCH PITHY PIVOT PLACE PLAID PLAIN PLAIT PLANE PLANK PLANS PLANT PLATE PLAYS PLAZA PLEAD PLEAS PLIED PLIES PLOTS PLUCK PLUGS PLUMB PLUME PLUMS PLUSH PODIA POEMS POESY POETS POINT POISE POKED POKER POKES POLAR POLES POLKA POLLS PONDS POOLS POPES POPPA POPPY PORCH PORED PORES PORTS POSED POSER POSES POSSE POSTS POUCH POUND POURS POWER PRANK PRATE PRAYS PRESS PREYS PRICE PRICK PRIDE PRIED PRIES PRIME PRINT PRIOR PRISM PRIVY PRIZE PROBE PRONE PROOF PROPS PROSE PROSY PROUD PROVE PROWL PROWS PROXY PRUDE PRUNE PSALM PSHAW PUDGY PUFFS PUFFY PULLS PULPY PULSE PUMPS PUNCH PUPIL PUPPY PUREE PURER PURGE PURSE PUSSY PUTTY QUACK QUAFF QUAIL QUAKE QUALM QUART QUASI QUAYS QUEEN QUEER QUELL QUERY QUEST QUEUE QUICK QUIET QUILL QUILT QUIPS QUIRE QUITE QUITS QUOTA QUOTE QUOTH RABBI RABID RACED RACER RACES RACKS RADII RADIO RAFTS RAGED RAGES RAIDS RAILS RAINS RAINY RAISE RAJAH RAKED RAKES RALLY RANCH RANGE RANKS RAPID RARER RARES RATED RATES RATIO RAVED RAVEN RAVES RAYON RAZED RAZOR REACH REACT READS READY REALM REALS REAMS REAPS REARS REBEL REBUS REBUT RECUR REEDS REEDY REEFS REEKS REELS REEVE REFER REFIT REGAL REIGN REINS RELAX RELAY RELIC REMIT RENDS RENEW RENTS REPAY REPEL REPLY RESET RESIN RESTS REVEL REVUE RHEUM RHYME RICKS RIDER RIDES RIDGE RIFLE RIFTS RIGHT RIGID RILED RILLS RIMES RINGS RINSE RIOTS RIPEN RIPER RISEN RISER RISES RISKS RISKY RITES RIVAL RIVEN RIVER RIVET ROADS ROAMS ROARS ROAST ROBED ROBES ROBIN ROCKS ROCKY ROGUE ROLES ROLLS ROMAN ROOFS ROOKS ROOMS ROOMY ROOST ROOTS ROPED ROPES ROSES ROSIN ROUGE ROUGH ROUND ROUSE ROUTE ROUTS ROVED ROVER ROWDY ROWED ROYAL RUDER RUFFS RUINS RULED RULER RULES RUNES RUNGS RUPEE RURAL RUSES SABLE SABRE SACKS SADLY SAFER SAGAS SAGES SAHIB SAILS SAINT SAITH SALAD SALES SALLY SALON SALSA SALTS SALTY SALVE SALVO SANDS SANDY SANER SATED SATIN SATYR SAUCE SAUCY SAVED SAVES SAWED SCALD SCALE SCALP SCALY SCAMP SCANS SCANT SCARE SCARF SCARS SCENE SCENT SCION SCOFF SCOLD SCOOP SCOPE SCORE SCORN SCOUR SCOUT SCOWL SCRAP SCREW SCRIP SCRUB SCULL SEALS SEAMS SEAMY SEATS SECTS SEDAN SEDGE SEEDS SEEDY SEEKS SEEMS SEERS SEIZE SELLS SEMEN SENDS SENSE SERFS SERGE SERUM SERVE SEVEN SEVER SEWED SEWER SEXES SHACK SHADE SHADY SHAFT SHAKE SHAKY SHALE SHALL SHALT SHAME SHAMS SHANK SHAPE SHARE SHARK SHARP SHAVE SHAWL SHEAF SHEAR SHEDS SHEEN SHEEP SHEER SHEET SHEIK SHELF SHELL SHIED SHIFT SHINE SHINS SHINY SHIPS SHIRE SHIRK SHIRT SHOAL SHOCK SHOES SHONE SHOOK SHOON SHOOT SHOPS SHORE SHORN SHORT SHOTS SHOUT SHOVE SHOWN SHOWS SHOWY SHRED SHREW SHRUB SHRUG SHUNS SHUTS SHYLY SIBYL SIDED SIDES SIEGE SIEVE SIGHS SIGHT SIGMA SIGNS SILKS SILKY SILLS SILLY SINCE SINEW SINGE SINGS SINKS SIREN SIRES SITES SIXES SIXTH SIXTY SIZED SIZES SKATE SKEIN SKIES SKIFF SKILL SKIMS SKINS SKIPS SKIRT SKULK SKULL SKUNK SLABS SLACK SLAGS SLAIN SLAKE SLANG SLANT SLAPS SLASH SLATE SLATS SLAVE SLAYS SLEDS SLEEK SLEEP SLEET SLEPT SLICE SLICK SLIDE SLILY SLIME SLIMY SLING SLINK SLIPS SLITS SLOOP SLOPE SLOPS SLOTH SLUGS SLUMP SLUMS SLUNG SLUNK SLUSH SLYLY SMACK SMALL SMART SMASH SMEAR SMELL SMELT SMILE SMIRK SMITE SMITH SMOCK SMOKE SMOKY SMOTE SNACK SNAGS SNAIL SNAKE SNAKY SNAPS SNARE SNARL SNEAK SNEER SNIFF SNIPE SNOBS SNORE SNORT SNOUT SNOWS SNOWY SNUFF SOAPY SOARS SOBER SOCKS SOFAS SOGGY SOILS SOLAR SOLES SOLID SOLOS SOLVE SONGS SONNY SOOTH SOOTY SORES SORRY SORTS SOUGH SOULS SOUND SOUPS SOUSE SOUTH SOWED SOWER SPACE SPADE SPAKE SPANK SPANS SPARE SPARK SPARS SPASM SPAWN SPEAK SPEAR SPECK SPEED SPELL SPELT SPEND SPENT SPERM SPICE SPICY SPIED SPIES SPIKE SPILL SPILT SPINE SPINS SPINY SPIRE SPITE SPITS SPLIT SPOIL SPOKE SPOOK SPOOL SPOON SPOOR SPORE SPORT SPOTS SPOUT SPRAY SPREE SPRIG SPUNK SPURN SPURS SPURT SQUAD SQUAT SQUAW STABS STACK STAFF STAGE STAGS STAID STAIN STAIR STAKE STALE STALK STALL STAMP STAND STANK STARE STARK STARS START STATE STAVE STAYS STEAD STEAK STEAL STEAM STEED STEEL STEEP STEER STEMS STEPS STERN STEWS STICK STIFF STILE STILL STING STINK STINT STIRS STOCK STOIC STOLE STONE STONY STOOD STOOL STOOP STOPS STORE STORK STORM STORY STOUT STOVE STRAP STRAW STRAY STREW STRIP STRUT STUCK STUDS STUDY STUFF STUMP STUNG STUNT STYLE SUAVE SUCKS SUGAR SUING SUITE SUITS SULKS SULKY SULLY SUNNY SUPER SURER SURGE SURLY SWAIN SWAMP SWANS SWARD SWARM SWAYS SWEAR SWEAT SWEEP SWEET SWELL SWEPT SWIFT SWILL SWIMS SWINE SWING SWIRL SWISH SWOON SWOOP SWORD SWORE SWORN SWUNG SYNOD SYRUP TABBY TABLE TABOO TACIT TACKS TAILS TAINT TAKEN TAKES TALES TALKS TALLY TALON TAMED TAMER TANKS TAPER TAPES TARDY TARES TARRY TARTS TASKS TASTE TASTY TAUNT TAWNY TAXED TAXES TEACH TEAMS TEARS TEASE TEEMS TEENS TEETH TELLS TEMPI TEMPO TEMPS TENDS TENET TENOR TENSE TENTH TENTS TEPEE TEPID TERMS TERSE TESTS TESTY TEXTS THANK THEFT THEIR THEME THERE THESE THICK THIEF THIGH THINE THING THINK THIRD THONG THORN THOSE THREE THREW THROB THROE THROW THUMB THUMP THYME TIARA TIBIA TICKS TIDAL TIDES TIERS TIGER TIGHT TILDE TILED TILES TILLS TILTS TIMED TIMES TIMID TINGE TINTS TIPSY TIRED TIRES TITHE TITLE TOADS TOAST TODAY TODDY TOILS TOKEN TOLLS TOMBS TOMES TONED TONES TONGS TONIC TOOLS TOOTH TOPAZ TOPIC TOQUE TORCH TORSO TORTS TOTAL TOTEM TOUCH TOUGH TOURS TOWED TOWEL TOWER TOWNS TOXIC TOYED TRACE TRACK TRACT TRADE TRAIL TRAIN TRAIT TRAMP TRAMS TRAPS TRASH TRAYS TREAD TREAT TREED TREES TREND TRESS TRIAD TRIAL TRIBE TRICE TRICK TRIED TRIES TRILL TRIPE TRIPS TRITE TROLL TROOP TROTH TROTS TROUT TRUCE TRUCK TRUER TRULY TRUMP TRUNK TRUSS TRUST TRUTH TRYST TUBES TUFTS TULIP TULLE TUNED TUNES TUNIC TURNS TUSKS TUTOR TWAIN TWANG TWEED TWICE TWIGS TWINE TWINS TWIRL TWIST TYING TYPED TYPES UDDER ULCER ULTRA UNCLE UNCUT UNDER UNDID UNDUE UNFIT UNION UNITE UNITS UNITY UNSAY UNTIE UNTIL UPPER UPSET URBAN URGED URGES URINE USAGE USERS USHER USING USUAL USURP USURY UTTER VAGUE VALES VALET VALID VALUE VALVE VANES VAPID VASES VAULT VAUNT VEILS VEINS VELDT VENAL VENOM VENTS VENUE VERBS VERGE VERSE VERVE VESTS VEXED VEXES VIALS VICAR VICES VIDEO VIEWS VIGIL VILER VILLA VINES VIOLA VIPER VIRUS VISIT VISOR VISTA VITAL VIVID VIXEN VIZOR VOCAL VODKA VOGUE VOICE VOILE VOLTS VOMIT VOTED VOTER VOTES VOUCH VOWED VOWEL VYING WADED WAFER WAFTS WAGED WAGER WAGES WAGON WAIFS WAILS WAIST WAITS WAIVE WAKED WAKEN WAKES WALKS WALLS WALTZ WANDS WANED WANES WANTS WARDS WARES WARMS WARNS WARTS WASPS WASTE WATCH WATER WAVED WAVER WAVES WAXED WAXEN WAXES WEARS WEARY WEAVE WEDGE WEEDS WEEDY WEEKS WEEPS WEIGH WEIRD WELCH WELLS WENCH WHACK WHALE WHARF WHEAT WHEEL WHELP WHERE WHICH WHIFF WHILE WHIMS WHINE WHIPS WHIRL WHIRR WHISK WHIST WHITE WHOLE WHOOP WHORE WHOSE WICKS WIDEN WIDER WIDOW WIDTH WIELD WIGHT WILDS WILES WILLS WINCE WINCH WINDS WINDY WINES WINGS WINKS WIPED WIPES WIRED WIRES WISER WISPS WITCH WITTY WIVES WOMAN WOMEN WOODS WOODY WOOED WOOER WORDS WORDY WORKS WORLD WORMS WORRY WORSE WORST WORTH WOULD WOUND WRACK WRAPS WRAPT WRATH WREAK WRECK WREST WRING WRIST WRITE WRITS WRONG WROTE WROTH YACHT YARDS YARNS YAWNS YEARN YEARS YEAST YELLS YELPS YIELD YOKED YOKES YOLKS YOUNG YOURS YOUTH ZEBRA ZONES`.split(/\s+/));
+
+const W3 = new Set(`AAA AAC AAM ABA ABB ABO ACE ACK ACT ADE ADJ ADO ADV AEL AFF AGA AGE AHI AIA AID AIM AIR AIT AJR AKE ALA ALB ALC ALE ALP ALT ALU AMA AMB AMP AMT AMU ANA ANN ANP ANT APE APP ARA ARB ARC ARD ARG ARK ARM ARR ART ASH ASK ASP ASR ASS ATT AUK AUL AVA AVE AWE AWL AWM AWN AXE AYR BAA BAB BAC BAD BAE BAG BAI BAN BAO BAP BAR BAT BAY BAZ BBL BBQ BED BEE BEG BEL BEN BER BET BEY BEZ BIB BID BIM BIN BIO BIS BIZ BLU BLY BOA BOB BOD BOG BOI BOL BOO BOP BOR BOT BOW BOX BOY BPM BPP BRA BRO BRU BUB BUD BUG BUM BUN BUS BUY BYE CAD CAF CAG CAL CAM CAN CAP CAR CAT CAW CAY CCF CCM CDR CEE CEL CEM CEP CHA CHI CIG COB COD COG COL CON COO COP COQ COT COW COX COY COZ CPL CRU CRY CSC CUB CUD CUE CUN CUP CUR CUT CWM CYC DAD DAF DAG DAH DAI DAK DAL DAM DAN DAO DAP DAR DAW DAY DBA DEB DEE DEG DEL DEN DEO DEP DER DEV DEW DEX DEY DIB DIF DIG DIN DIP DIR DIS DIT DIV DOB DOC DOD DOE DOG DOH DOL DOM DON DOR DOT DOW DOZ DPA DRO DSO DST DUB DUD DUE DUN DUO DUX DYE EAM EAR EAU EBB ECO ECU EEL EGG EGO EID ELD ELF ELK ELL ELM ELT EMA EMO EMP EMU ENC END ENG ENT EON ERA ERG ERK ESH ESS ETA ETH EVE EWE EXT EYE FAA FAC FAD FAE FAG FAM FAN FAP FAT FAV FAX FAY FEE FEM FEN FET FEU FEY FEZ FIB FID FIG FIL FIN FIR FIT FIX FLU FLY FOB FOE FOG FON FOO FOP FOX FOY FRA FRY FUG FUN FUR GAC GAD GAG GAL GAP GAR GAS GAT GAU GAY GED GEL GEM GEN GEO GER GHI GIB GIF GIG GIN GIP GIS GIT GNU GOA GOB GOD GOG GOO GOW GOY GRE GRP GUM GUN GUT GUV GUY GYM GYP HAG HAJ HAM HAO HAP HAR HAT HAW HAY HEI HEM HEN HEP HET HEX HIE HIN HIP HIT HOB HOD HOE HOF HOG HOO HOP HSE HUB HUD HUE HUG HUI HUM HUN HUT IBN ICE IDE ILE ILK ILL IMP ING INK INN INT ION IPE IRE IRP ISO ITA IVY JAG JAM JAN JAR JAT JAW JAY JAZ JET JIB JIG JIN JIP JIT JIU JOB JOE JOG JOT JOY JUG JUN JUS JUT KAI KAJ KAN KAR KAT KAY KBP KEA KEE KEF KEG KEN KES KET KEY KID KIE KIF KIN KIP KIR KIT KOA KOI KOP KOR KPC KRA KUN KYR KYU LAB LAC LAD LAG LAI LAM LAP LAR LAT LAV LAW LBW LEA LEE LEG LEK LEO LEP LES LET LEU LEV LEW LEY LIB LID LIE LIF LIN LIP LOA LOB LOC LOD LOG LOL LOO LOP LOT LOW LOY LUD LUG LUM LUR LUV LUX LUZ LYE LYN MAC MAG MAL MAM MAN MAO MAP MAR MAT MAW MAX MAY MCF MED MEE MEG MEL MEM MER MEU MEW MGR MGT MHW MIA MIB MIC MID MIL MIM MIN MIR MIX MOA MOB MOD MOE MOH MOL MOM MON MOO MOP MOS MOT MSG MUD MUG MUM MUN MVT NAD NAG NAN NAP NAT NAV NAY NEB NED NEP NET NEU NEW NEY NIB NIC NID NIG NIM NIN NIP NIS NIT NIX NOB NOD NOH NOM NOP NOX NUB NUM NUN NUR NUT NYE OBA OBE OBS OCA OCT ODA ODE OGI OHM OIK OIL OKA OKE OLA OLD OLF OMI ORB ORC ORD ORE ORF ORG ORT OSH OST OUL OUT OWL OXO OXY PAD PAH PAK PAL PAM PAN PAP PAR PAS PAT PAU PAV PAW PAX PAY PCT PDF PEA PEC PEE PEG PEN PEP PES PET PEW PFU PHI PIA PIC PIE PIG PIN PIP PIT PIX PKT PLY PNG POA POD POI POL POM POO POP POT POW POX PRA PRE PRO PSI PTR PUB PUD PUG PUL PUN PUP PUR PUS PUT PUY PWR PYE PYX QIN QUE RAD RAG RAI RAJ RAM RAP RAS RAT RAW RAY RDF REA REB REC RED REE REF REG REI REM REN REP RES REV REX RHO RIA RIB RIE RIG RIK RIM RIN RIP RND ROB ROC ROD ROE ROG ROK RON ROO ROT ROW ROY RPM RPT RRP RUB RUC RUE RUG RUM RUN RUT RYA RYE SAC SAG SAI SAL SAM SAN SAO SAP SAX SAY SCI SEA SEC SEE SEG SEM SEN SEQ SER SET SEX SFX SGN SHO SHY SIB SID SIE SIG SIL SIM SIN SIP SIR SIS SIT SKA SKI SKY SOB SOC SOD SOE SOH SOL SOM SON SOO SOP SOT SOU SOV SOW SPA SPY SQN SQR STA STH STN STR STY SUB SUD SUH SUK SUM SUN SUS TAA TAB TAC TAD TAF TAG TAJ TAM TAN TAO TAP TAR TAS TAT TAU TAV TAW TAX TAY TBS TCE TEA TED TEE TEL TET TEW TEX TEY TIA TIB TIC TIE TIG TIL TIN TIP TIT TOA TOD TOE TOG TOL TOM TON TOP TOR TOT TOW TOX TOY TPI TRI TRY TSP TUB TUE TUG TUM TUN TUP TUX TYE UFO ULU UMP UNC UND UNI URE URN USE USR UTE UTU UVA UZI VAC VAG VAI VAN VAR VAS VAT VAW VAX VDO VEE VEG VEL VER VET VIA VIC VID VIG VIM VOE VOL VOW WAD WAG WAR WAT WAU WAX WAY WEB WEE WEM WEN WET WEY WHO WIG WIM WIN WIT WIZ WOE WOG WOK WOP WOW WPM WYE WYN XOR YAM YAP YAT YAW YEN YEO YEW YIN YIP YOB YOP YOW ZAK ZAP ZED ZEE ZEK ZEM ZEN ZEP ZHU ZIG ZIL ZIP ZIT ZOO`.split(/\s+/));
+
+const W4 = new Set(`ABBA ABBE ABLE ABLY ACES ACHE ACID ACME ACNE ACRE ACTA ACTS ACYL ADDS AERO AFAR AFRO AGAR AGED AGER AGES AIDA AIDE AIDS AIMS AIRS AIRY AJAR AKIN ALAN ALAS ALBA ALEC ALFA ALGA ALLY ALMA ALMS ALOE ALPS ALSO ALTO ALUM AMEN AMES AMID AMIN AMIR AMIS AMMO AMPS ANAL ANCE ANEW ANNA ANNO ANON ANTE ANTI ANTS ANUS APES APEX APSE AQUA ARCH ARCO ARCS ARDS AREA ARES ARIA ARID ARMS ARMY ARSE ARTS ASKS ATOM ATOP AULD AUNT AURA AUTO AVER AVID AWAY AWED AWRY AXEL AXES AXIS AXLE AXON BAAL BABA BABE BABU BABY BACH BACK BADE BAGS BAHT BAIL BAIT BAKE BALD BALE BALK BALL BALM BAND BANE BANG BANK BANS BAPU BARB BARD BARE BARK BARN BARS BASE BASH BASK BASS BAST BATE BATH BATS BAUD BAYS BEAD BEAK BEAM BEAN BEAR BEAT BEAU BECK BEDE BEDS BEEF BEEN BEEP BEER BEES BEET BEGS BEIN BELL BELT BEND BENE BENI BENT BERG BEST BETA BETH BETS BHAI BIAS BIDE BIDS BIEN BIER BIKE BILE BILL BIND BING BINS BIOS BIRD BITE BITS BLAH BLED BLEW BLOB BLOC BLOG BLOT BLOW BLUE BLUR BOAR BOAS BOAT BOCK BODE BODY BOGS BOIL BOIS BOLD BOLL BOLT BOMB BONA BOND BONE BONY BOOK BOOL BOOM BOON BOOT BORA BORE BORN BOSS BOTH BOUT BOWL BOWS BOYS BRAD BRAG BRAN BRAS BRAT BRAY BRED BREW BRIG BRIM BRIT BROS BROW BUCK BUDS BUFF BUGS BULB BULK BULL BUMP BUMS BUND BUNK BUNS BUOY BURG BURN BURR BURY BUSH BUSS BUST BUSY BUTE BUTT BUYS BUZZ BYTE CABS CADE CAFE CAGE CAIN CAKE CALF CALL CALM CAME CAMP CAMS CANE CANS CANT CAPE CAPO CAPS CARD CARE CARL CARP CARR CARS CART CASA CASE CASH CASK CAST CATE CATS CAVA CAVE CEDE CELL CENT CERT CESS CHAD CHAI CHAM CHAO CHAP CHAR CHAS CHAT CHEF CHER CHEW CHEZ CHIA CHIC CHIN CHIP CHIT CHOP CHOU CHOW CHUM CINE CITE CITY CLAD CLAM CLAN CLAP CLAW CLAY CLEM CLIP CLOG CLOT CLUB CLUE COAL COAT COAX COBB COCA COCK COCO CODA CODE COED COIL COIN COKE COLA COLD COLE COLL COLS COLT COMA COMB COME COMM COMP COND CONE CONF CONN CONS COOK COOL COON COOP COPE COPS COPY CORD CORE CORK CORN CORY COST COSY COTE COTS COUP COUR COVE COWS COZY CRAB CRAG CRAM CRAP CRAY CREE CREW CRIB CRIM CRIT CROP CROW CRUX CUBE CUBS CUES CUFF CULT CUNT CUPS CURB CURD CURE CURL CURR CURT CUSP CUTE CUTS CYST CZAR DADA DAFT DAHL DAIS DALE DALI DAME DAMN DAMP DAMS DANG DANK DANS DARE DARK DARN DART DASH DATA DATE DAVY DAWN DAYS DAZE DEAD DEAF DEAL DEAN DEAR DEBS DEBT DECK DECO DEED DEEM DEEP DEER DEFT DEFY DELI DELL DEMO DENS DENT DENY DERM DESK DEUS DEVA DIAL DICE DICK DIDO DIED DIES DIET DIFF DIGS DIKE DILL DIME DINE DING DINO DINT DIPS DIRE DIRK DIRT DISC DISH DISK DISS DIVE DOCK DOCS DOER DOES DOGS DOIT DOLE DOLL DOME DONA DONE DONG DONS DOOM DOOR DOPA DOPE DORE DORM DOSE DOST DOTH DOTS DOTY DOUR DOVE DOWN DOZE DRAB DRAG DRAM DRAW DREW DRIP DROP DRUG DRUM DUAL DUCE DUCK DUCT DUDE DUEL DUES DUET DUFF DUKE DULL DULY DUMA DUMB DUMP DUNE DUNG DUNS DUPE DURA DUSK DUST DUTY DYAD DYED DYER DYES DYKE EACH EARL EARN EARS EASE EAST EASY EATS ECHO EDDY EDGE EDGY EDIT EELS EGGS EGOS EINE ELAN ELMS ELSE EMIR EMIT EMMA EMMY ENDS ENVY EPIC ERAS ERGO ERIC EROS ERST ESSE ETAT ETCH EURO EVEN EVER EVIL EWES EXAM EXEC EXIT EXON EXPO EYED EYES EYRE FACE FACT FADE FADS FAIL FAIN FAIR FAKE FALL FAME FANG FANS FARE FARM FART FAST FATE FATS FAUT FAUX FAWN FEAR FEAT FEDS FEED FEEL FEES FEET FELL FELT FEND FERN FETE FEUD FIAT FIEF FIFE FIGS FILE FILL FILM FILS FIND FINE FINK FINS FIRE FIRM FIRS FISH FISK FIST FITS FIVE FLAG FLAK FLAP FLAT FLAW FLAX FLEA FLED FLEE FLEW FLEX FLIP FLOP FLOR FLOW FLUE FLUX FOAL FOAM FOCI FOES FOIL FOLD FOLK FOND FONT FOOD FOOL FOOT FORA FORD FORE FORK FORM FORT FOSS FOUL FOUR FOWL FRAU FRAY FREE FRET FROG FROM FUCK FUEL FUJI FULL FUME FUND FUNG FUNK FURS FURY FUSE FUSS GAGE GAIN GAIT GALA GALE GALL GAMA GAME GANG GAOL GAPS GARB GASH GASP GATE GAVE GAYS GAZE GEAR GELS GEMS GENE GENS GENT GERM GETS GHEE GIFT GILA GILL GILT GINN GIRL GIST GIVE GLAD GLEE GLEN GLIA GLIB GLOW GLUE GLUM GLUT GOAD GOAL GOAT GODS GOES GOFF GOLD GOLF GONE GONG GOOD GORE GORY GOSH GOSS GOUT GOWN GRAB GRAD GRAM GRAN GRAY GREW GREY GRID GRIM GRIN GRIP GRIT GROW GRUB GULF GULL GULP GUMS GUNS GURU GUSH GUST GUTS GUYS GYRO HACK HAIL HAIR HAJI HAJJ HALE HALF HALL HALO HALT HAMS HAND HANG HANK HARD HARE HARK HARM HARP HART HASH HAST HATE HATH HATS HAUL HAUT HAVE HAWK HAYS HAZE HAZY HEAD HEAL HEAP HEAR HEAT HECK HEED HEEL HEFT HEIR HELD HELL HELM HELP HEME HEMP HENS HERB HERD HERE HERO HERS HEWN HICK HIDE HIGH HIKE HILL HILT HIND HINT HIPS HIRE HISS HIST HITS HIVE HOAR HOAX HOCK HOES HOGG HOGS HOLD HOLE HOLM HOLT HOLY HOME HOMO HONE HONG HONS HOOD HOOF HOOK HOOP HOOT HOPE HOPS HORA HORN HORS HOSE HOST HOUR HOVE HOWE HOWL HUBS HUCK HUES HUFF HUGE HUGS HULK HULL HUMP HUNG HUNK HUNS HUNT HURL HURT HUSH HUSK HUTS HYMN HYPE HYPO IBIS ICED ICES ICON IDEA IDEE IDEM IDLE IDLY IDOL ILIA ILLS IMAM INCH INFO INGS INKS INNS INTO IONS IOTA IRIS IRON ISLE ITCH ITEM JACK JADE JAIL JAKE JAMB JAMS JANE JAPS JARS JAVA JAWS JAZZ JEAN JEEP JEFF JERK JESS JEST JETS JEWS JILL JOBS JOCK JOEY JOHN JOIN JOKE JOLT JONG JOSH JOUR JOYS JUDY JUGS JUMP JUNK JURA JURE JURY JUST JUTE KALE KALI KAMA KAMI KANE KANG KANT KARA KEEL KEEN KEEP KELP KEMP KENT KEPT KERN KETO KEYS KHAN KICK KIDS KIEV KILL KILN KILO KIND KING KINK KINO KIRK KISS KITE KITS KIVA KNEE KNEW KNIT KNOB KNOT KNOW KOHL KOLA KRIS KYLE LABS LACE LACK LACY LADS LADY LAGS LAID LAIN LAIR LAKE LAKH LAMA LAMB LAME LAMP LANA LAND LANE LANG LAPS LARD LARK LARS LASH LASS LAST LATE LATH LAUD LAVA LAVE LAWN LAWS LAYS LAZY LEAD LEAF LEAK LEAM LEAN LEAP LEAR LEAS LEER LEES LEFT LEGS LEND LENS LENT LESS LEST LETS LEVY LEWD LIAR LIAS LICE LICK LIDS LIED LIEN LIES LIEU LIFE LIFT LIKE LILY LIMA LIMB LIME LIMO LIMP LIND LINE LING LINK LINN LINT LION LIPS LIRA LIRE LISP LIST LITE LIVE LOAD LOAF LOAM LOAN LOBE LOCH LOCI LOCK LOCO LODE LOFT LOGO LOGS LOIN LOMA LOME LONE LONG LOOK LOOM LOON LOOP LOOS LOOT LOPE LORD LORE LOSE LOSS LOST LOTH LOTS LOUD LOVE LOWE LOWS LUCE LUCK LUKE LULL LULU LUMP LUNA LUNG LURE LURK LUSH LUST LUTE LUTZ LYME LYNX LYRE MAAS MACE MACH MACK MADE MAGE MAGI MAHA MAID MAIL MAIN MAIR MAKE MALA MALE MALI MALL MALT MAMA MANA MANE MANI MANO MANS MANY MAPS MARA MARC MARE MARK MARL MARS MART MARY MASH MASK MASS MAST MATE MATH MATS MATT MAUD MAWR MAYA MAYO MAYS MAZE MEAD MEAL MEAN MEAT MEEK MEER MEET MEGA MEIN MELT MEME MEMO MEMS MEND MENG MENT MENU MERE MESA MESH MESS META METH METS MICA MICE MICH MICK MIDI MIEN MIHI MIKE MILD MILE MILK MILL MILO MIME MINA MIND MINE MING MINI MINK MINT MIRE MIRO MISE MISS MIST MITE MITT MOAN MOAT MOBS MOBY MOCK MODE MOHR MOLD MOLE MOLL MOLT MOMS MONA MONK MONO MONS MOOD MOON MOOR MOOT MORA MORE MORN MORT MOSS MOST MOTE MOTH MOTS MOTT MOVE MUCH MUCK MUDS MUGS MUIR MULE MULL MUNI MUON MUSE MUSH MUSK MUST MUTE MYTH NACH NADA NAGA NAIL NAME NANA NANG NAPA NAPE NAPS NAVE NAVY NAZI NEAL NEAR NEAT NECK NEED NEON NESS NEST NETS NEVI NEWS NEWT NEXT NICE NICK NIGH NILS NINE NISI NOAH NODE NODS NOEL NOIR NOME NONE NOOK NOON NOPE NORM NOSE NOTE NOUN NOUS NOVA NUDE NULL NUMB NUNS NURS NUTS OAKS OARS OATH OATS OBEY OBOE ODDS ODES ODOR OFFS OGRE OHMS OILS OILY OKAY OLDS OMEN OMER OMIT ONCE ONES ONLY ONTO ONUS OOZE OPAL OPEN OPUS ORAL ORES ORGY OTTO OUCH OURS OUST OUTS OVAL OVEN OVER OVUM OWED OWES OWLS OWNS OXEN PACE PACK PACO PACS PACT PADS PAGE PAID PAIL PAIN PAIR PAIS PALE PALL PALM PALS PANE PANG PANS PANT PAPA PARA PARE PARK PARR PARS PART PASS PAST PATE PATH PATS PAUL PAVE PAWN PAWS PAYS PEAK PEAL PEAR PEAS PEAT PECK PEEK PEEL PEEP PEER PEGS PELL PELT PENS PENT PERE PERI PERM PERT PESO PEST PETS PEWS PICA PICK PIED PIER PIES PIET PIGS PIKE PILE PILL PIMA PIMP PINE PING PINK PINS PINT PION PIPE PISS PITH PITS PITY PLAN PLAT PLAY PLEA PLOT PLOW PLOY PLUG PLUM PLUS POCO PODS POEM POET POKE POLE POLK POLL POLO POLY POMP POND PONG PONS PONT PONY POOH POOL POOP POOR POPE POPS PORE PORK PORN PORT POSE POSH POST POTS POUR POWS PRAY PREM PREP PREY PRIM PROB PROD PROF PROG PROM PROP PROS PROW PUBS PUCK PUFF PUGH PUJA PULL PULP PUMP PUNK PUNS PUNT PUNY PUPS PURE PURI PUSH PUTS PUTT PYRE QUAD QUAI QUAY QUID QUIN QUIT QUIZ QUOD RABI RACE RACK RADS RAFT RAGA RAGE RAGS RAID RAIL RAIN RAJA RAKE RAMI RAMP RAMS RANA RAND RANG RANI RANK RANT RAPE RAPT RARE RASH RATA RATE RATH RATS RAVE RAYS READ REAL REAP REAR REDE REDO REDS REED REEF REEL REES REFS REIN REIS RELY REND RENT REPS REST RHEA RIBS RICE RICH RICK RIDE RIFE RIFT RIGS RIME RIMS RIND RING RINK RIOT RIPE RISE RISK RITE RITZ ROAD ROAM ROAN ROAR ROBE ROBS ROCK RODE RODS ROLE ROLF ROLL ROMA ROMS ROOD ROOF ROOK ROOM ROOS ROOT ROPE RORY ROSE ROSY ROTE ROUT ROUX ROWS RUBS RUBY RUDD RUDE RUFF RUGS RUIN RULE RUMP RUNG RUNS RUSE RUSH RUSK RUST RUTH RUTS SACK SACS SADE SAFE SAGA SAGE SAGO SAID SAIL SAKE SALE SALT SAMA SAME SAMS SAND SANE SANG SANK SANS SANT SARI SARS SASH SATI SAUL SAVE SAWN SAWS SAYS SCAB SCAM SCAN SCAR SCOT SCUM SEAL SEAM SEAN SEAS SEAT SECT SEED SEEK SEEM SEEN SEEP SEER SEES SELF SELL SEMI SENA SEND SENS SENT SEPT SERA SERF SESS SETS SEWN SEXY SHAD SHAH SHAM SHAN SHAW SHAY SHEA SHED SHEW SHIN SHIP SHIT SHOD SHOE SHOP SHOT SHOW SHRI SHUN SHUT SICH SICK SIDE SIFT SIGH SIGN SILK SILL SILO SILT SIMS SIND SINE SING SINK SINS SIPS SIRE SIRS SITE SITS SIZE SKEW SKID SKIM SKIN SKIP SKIS SLAB SLAG SLAM SLAP SLAY SLED SLEW SLID SLIM SLIP SLIT SLOP SLOT SLOW SLUG SLUM SLUR SLUT SMOG SMUG SNAG SNAP SNOB SNOW SNUB SNUG SOAK SOAP SOAR SOBS SOCK SODA SOFA SOFT SOHO SOIL SOLA SOLD SOLE SOLO SOMA SOME SONG SONS SOON SOOT SORE SORT SOUL SOUP SOUR SOUS SOWN SOWS SOYA SPAM SPAN SPAR SPAT SPEC SPED SPIE SPIN SPIT SPOT SPUN SPUR STAB STAG STAR STAT STAY STEM STEP STEW STIR STOP STOW STUB STUD SUBS SUCH SUCK SUED SUIT SULU SUMP SUMS SUNG SUNK SUNS SURA SURE SURF SWAB SWAM SWAN SWAP SWAT SWAY SWIM SYED SYNC TABS TABU TACK TACT TAGS TAIL TAIN TAIT TAKE TALC TALE TALK TALL TAME TANA TANG TANK TAOS TAPE TAPS TARA TARN TARO TART TASK TATE TAUT TAXA TAXI TEAK TEAL TEAM TEAR TEAS TECH TEEN TEIL TELE TELL TEMP TEND TENS TENT TERM TERN TEST TETE TEXT THAN THAR THAT THAW THEE THEM THEN THEY THIN THIS THOU THRO THRU THUD THUS TIAN TICK TICS TIDE TIDY TIED TIER TIES TILE TILL TILT TIME TINA TINE TING TINS TINT TINY TIPS TIRE TITS TOAD TOBY TOED TOES TOFU TOGA TOIL TOLD TOLL TOMB TOME TOMS TONE TONG TONS TONY TOOK TOOL TOPS TORE TORI TORN TORO TORR TORT TORY TOSS TOTE TOUR TOUT TOWN TOYS TRAM TRAP TRAY TREE TREK TRES TRIE TRIM TRIO TRIP TROD TROP TROT TROY TRUE TSAR TUAN TUBE TUBS TUCK TUFF TUFT TUGS TUNA TUNE TUNG TURF TURK TURN TWAS TWIG TWIN TWOS TYNE TYPE TYRE UGLY ULNA UNDE UNDO UNIT UNTO UPON UREA URGE URIC URNS USED USER USES VAIL VAIN VALE VANE VANS VARY VASA VASE VAST VATS VEAL VEER VEGA VEIL VEIN VENA VENT VERA VERB VERS VERT VERY VEST VETO VIAL VICE VIDE VIED VIEW VILE VINE VISA VISE VITA VIVA VIVE VIVO VOID VOLK VOLS VOLT VOTE VOWS WADE WADI WAGE WAIL WAIS WAIT WAKE WALD WALK WALL WAND WANE WANG WANT WARD WARE WARM WARN WARP WARS WART WARY WASH WASP WATT WAVE WAVY WAXY WAYS WEAK WEAL WEAN WEAR WEBS WEED WEEK WEEP WEFT WEIL WEIR WELD WELL WELT WENT WEPT WERE WERT WEST WHAT WHEN WHEY WHIG WHIM WHIP WHIT WHIZ WHOA WHOM WICK WIDE WIFE WIGS WILD WILL WILT WILY WIND WINE WING WINK WINN WINS WIPE WIRE WIRY WISE WISH WISP WISS WITH WITS WOES WOKE WOLF WOMB WONT WOOD WOOL WORD WORE WORK WORM WORN WORT WOVE WRAP WREN WRIT WYNN YALE YAMS YANG YANK YARD YARN YAWN YEAH YEAN YEAR YELL YOGA YOGI YOKE YOLK YORE YORK YOUR YUAN YULE ZACK ZEAL ZERO ZEST ZETA ZINC ZONA ZONE ZOOM ZOOS ZULU`.split(/\s+/));
+const W2 = new Set(`AN HE HI MY OH TV US`.split(/\s+/));
+
+const W5_ES = new Set(`PERRO GATOS CASAS LIBRO NOCHE TARDE MUNDO VERDE NEGRO CIELO AGUAS PLAYA FUEGO NIEVE CAMPO LUCES DULCE FRUTA ARROZ LECHE PAPEL COCHE CALLE DEDOS MANOS LIMON RATON JOVEN FELIZ CHICO CHICA PERLA PLATA NUBES ARENA PIEZA FALDA PUNTO TORRE FLORA CARTA NOTAS VOCES COSAS PASOS HORAS MUJER NINOS NINAS`.split(/\s+/));
+const W5_FR = new Set(`TABLE LIVRE PORTE FLEUR PLAGE NEIGE FORET VERRE MONDE ROUGE NOIRE BLANC JAUNE VILLE FRERE SOEUR AMOUR COEUR CHIEN POMME SUCRE SALON ARBRE HERBE TERRE ROUTE TRAIN AVION MUSEE ECOLE ELEVE DANSE CHANT`.split(/\s+/));
+const W5_CA = new Set(`TAULA PORTA FULLA NEGRE BLANC GROGA CASES ARBRE TERRA AIGUA FLORS NUVOL CAMPS DIADA FESTA CANCO COLOR POBLE RIURE`.split(/\s+/));
+const W5_IT = new Set(`PORTA FIORE VERDE ROSSO LIBRO CUORE AMORE GATTO FIUME MONTE TRENO AEREO DANZA CANTO NOTTE MONDO VENTO TERRA FUOCO ACQUA LATTE FORTE DOLCE BELLO BUONO`.split(/\s+/));
+
+const LANGS = [ {name:'Spanish', set: W5_ES}, {name:'French', set: W5_FR}, {name:'Catalan', set: W5_CA}, {name:'Italian', set: W5_IT} ];
+
+const VOWELS = new Set(['A','E','I','O','U']);
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+const LETTER_TIERS = {
+A:5,E:5,I:5,O:5,U:5,
+B:0,C:0,D:0,F:0,G:0,
+H:1,J:1,K:1,L:1,M:1,
+N:2,P:2,Q:2,R:2,S:2,
+T:3,V:3,W:3,X:3,Y:3,
+Z:4
+};
+
+/* base flat points for the core combos — reused as the reference scale
+   for culture words, names, and consecutive-streak bonuses */
+const BASE_PAIR=30, BASE_TRIO=220, BASE_POKER=8000;
+
+/* culture words are now scaled purely by length instead of hand-picked
+   values: 2 letters = 2x a pair, 3 letters = 3x a trio, 4 letters = 4x a poker.
+   Each word carries a short definition shown in its badge. */
+const CULTURE_DEFS = {
+  'OK':"Alright, agreed",
+  'GG':"\"Good game\"",
+  'XD':"Laughing-face emoticon",
+  'XP':"Grimacing/laughing emoticon",
+  'MJ':"Michael Jordan / Michael Jackson",
+  'JK':"\"Just kidding\"",
+  'BS':"Informal shorthand for nonsense",
+  'TU':"\"Thank you\", texting shorthand",
+  'LOL':"\"Laughing out loud\"",
+  'WOW':"Expression of amazement",
+  'HBO':"Home Box Office, TV network",
+  'KFC':"Kentucky Fried Chicken",
+  'UPS':"United Parcel Service",
+  'UFC':"Ultimate Fighting Championship",
+  'GPS':"Global Positioning System",
+  'ATP':"Association of Tennis Professionals",
+  'RPG':"Role-Playing Game",
+  'PPT':"PowerPoint file format",
+  'GPT':"Generative Pre-trained Transformer",
+  'XYZ':"Classic placeholder variables",
+  'FBI':"Federal Bureau of Investigation",
+  'RNG':"Random Number Generator",
+  'THB':"Thai Baht, currency code",
+  'TBH':"\"To be honest\"",
+  'THX':"\"Thanks\"",
+  'ADN':"DNA, in Spanish/French/Catalan",
+  'AFK':"\"Away from keyboard\"",
+  'JFK':"John F. Kennedy",
+  'UWU':"Cute/happy face emoticon",
+  'NATO':"North Atlantic Treaty Organization",
+  'URSS':"USSR, in Spanish/French",
+  'EEUU':"USA, in Spanish (Estados Unidos)",
+  'TUAH':"Viral \"Hawk Tuah\" meme phrase",
+  'OOPS':"Said after a small mistake"
+};
+const CULTURE_WORDS = new Set(Object.keys(CULTURE_DEFS));
+function cultureBasePoints(len){
+  if(len===2) return 2*BASE_PAIR;
+  if(len===3) return 3*BASE_TRIO;
+  if(len===4) return 4*BASE_POKER;
+  return 0;
+}
+
+/* popular person names — a lighter easter-egg badge, one tier below culture words */
+const NAMES = new Set([
+  'BOB','SAM','TOM','LEO','MIA','ANA','IAN','AMY','JEN',
+  'MATT','LISA','JOHN','MARY','JOSE','NOAH','LUCY','JAKE','RYAN','KATE','ERIN'
+]);
+function nameBasePoints(len){
+  if(len===2) return BASE_PAIR;
+  if(len===3) return BASE_TRIO;
+  if(len===4) return BASE_POKER;
+  return 0;
+}
+
+/* cities and country/region abbreviations — same CULTURE pool as the
+   acronyms above, just place-flavored. LA/NY/BCN style shorthand plus
+   the codes used across the EU, the Americas, and Asia-Pacific. */
+Object.assign(CULTURE_DEFS, {
+  'LA':"Los Angeles", 'NY':"New York", 'SF':"San Francisco", 'DC':"Washington, D.C.",
+  'UK':"United Kingdom", 'NZ':"New Zealand", 'HK':"Hong Kong",
+  'BCN':"Barcelona", 'MAD':"Madrid", 'PAR':"Paris", 'LON':"London", 'RIO':"Rio de Janeiro", 'NYC':"New York City",
+  'ESP':"Spain", 'FRA':"France", 'GER':"Germany", 'ITA':"Italy", 'POR':"Portugal", 'NED':"Netherlands",
+  'BEL':"Belgium", 'SUI':"Switzerland", 'POL':"Poland", 'SWE':"Sweden", 'NOR':"Norway", 'DEN':"Denmark",
+  'FIN':"Finland", 'GRE':"Greece", 'IRL':"Ireland", 'AUT':"Austria", 'CZE':"Czechia", 'HUN':"Hungary",
+  'ROU':"Romania", 'CRO':"Croatia", 'SRB':"Serbia", 'UKR':"Ukraine",
+  'USA':"United States", 'CAN':"Canada", 'MEX':"Mexico", 'BRA':"Brazil", 'ARG':"Argentina", 'CHI':"Chile",
+  'PER':"Peru", 'COL':"Colombia", 'CUB':"Cuba", 'URU':"Uruguay", 'VEN':"Venezuela",
+  'JPN':"Japan", 'CHN':"China", 'KOR':"South Korea", 'IND':"India", 'RUS':"Russia", 'AUS':"Australia",
+  'IDN':"Indonesia", 'THA':"Thailand", 'VIE':"Vietnam", 'PHI':"Philippines", 'SIN':"Singapore",
+  'ISR':"Israel", 'TUR':"Turkey", 'SAU':"Saudi Arabia", 'UAE':"United Arab Emirates", 'PAK':"Pakistan"
+});
+/* extra everyday acronyms — sports leagues, tech, and a couple of
+   internet/politics staples */
+Object.assign(CULTURE_DEFS, {
+  'PC':"Personal Computer",
+  'GPA':"Grade Point Average", 'CPR':"Cardiopulmonary resuscitation", 'BBL':"\"Be back later\"", 'UFO':"Unidentified Flying Object",
+  'NFL':"National Football League", 'NBA':"National Basketball Association",
+  'RBMK':"Soviet nuclear reactor design (Chernobyl)", 'MAGA':"\"Make America Great Again\"",
+  'UEFA':"Union of European Football Associations", 'FIFA':"World football's governing body",
+  'CSGO':"Counter-Strike: Global Offensive"
+});
+CULTURE_WORDS.clear();
+Object.keys(CULTURE_DEFS).forEach(k => CULTURE_WORDS.add(k));
+
+/* periodic table symbols, parsed greedily left-to-right (2-letter symbols
+   take priority over 1-letter ones) so a roll like "FEAST" reads as
+   Fe + A(no) + S + T — a tiny chemistry easter egg on almost every roll. */
+const ELEMENTS_1 = { H:'Hydrogen', B:'Boron', C:'Carbon', N:'Nitrogen', O:'Oxygen', F:'Fluorine',
+  P:'Phosphorus', S:'Sulfur', K:'Potassium', V:'Vanadium', Y:'Yttrium', I:'Iodine', W:'Tungsten', U:'Uranium' };
+const ELEMENTS_2 = {
+  HE:'Helium', LI:'Lithium', BE:'Beryllium', NE:'Neon', NA:'Sodium', MG:'Magnesium', AL:'Aluminium',
+  SI:'Silicon', CL:'Chlorine', AR:'Argon', CA:'Calcium', SC:'Scandium', TI:'Titanium', CR:'Chromium',
+  MN:'Manganese', FE:'Iron', CO:'Cobalt', NI:'Nickel', CU:'Copper', ZN:'Zinc', GA:'Gallium', GE:'Germanium',
+  AS:'Arsenic', SE:'Selenium', BR:'Bromine', KR:'Krypton', RB:'Rubidium', SR:'Strontium', ZR:'Zirconium',
+  NB:'Niobium', MO:'Molybdenum', TC:'Technetium', RU:'Ruthenium', RH:'Rhodium', PD:'Palladium', AG:'Silver',
+  CD:'Cadmium', IN:'Indium', SN:'Tin', SB:'Antimony', TE:'Tellurium', XE:'Xenon', CS:'Cesium', BA:'Barium',
+  LA:'Lanthanum', CE:'Cerium', PR:'Praseodymium', ND:'Neodymium', PM:'Promethium', SM:'Samarium', EU:'Europium',
+  GD:'Gadolinium', TB:'Terbium', DY:'Dysprosium', HO:'Holmium', ER:'Erbium', TM:'Thulium', YB:'Ytterbium',
+  LU:'Lutetium', HF:'Hafnium', TA:'Tantalum', RE:'Rhenium', OS:'Osmium', IR:'Iridium', PT:'Platinum',
+  AU:'Gold', HG:'Mercury', TL:'Thallium', PB:'Lead', BI:'Bismuth', PO:'Polonium', AT:'Astatine', RN:'Radon',
+  FR:'Francium', RA:'Radium', AC:'Actinium', TH:'Thorium', PA:'Protactinium', NP:'Neptunium', PU:'Plutonium',
+  AM:'Americium', CM:'Curium', BK:'Berkelium', CF:'Californium', ES:'Einsteinium', FM:'Fermium', MD:'Mendelevium',
+  NO:'Nobelium', LR:'Lawrencium', RF:'Rutherfordium', DB:'Dubnium', SG:'Seaborgium', BH:'Bohrium', HS:'Hassium',
+  MT:'Meitnerium', DS:'Darmstadtium', RG:'Roentgenium', CN:'Copernicium', NH:'Nihonium', FL:'Flerovium',
+  MC:'Moscovium', LV:'Livermorium', TS:'Tennessine', OG:'Oganesson'
+};
+function findElements(word){
+  const found = []; let i = 0;
+  while(i < 5){
+    if(i <= 3){
+      const two = word.slice(i, i+2);
+      if(ELEMENTS_2[two]){ found.push({sym: two.charAt(0)+two.charAt(1).toLowerCase(), name: ELEMENTS_2[two], idx:[i,i+1]}); i += 2; continue; }
+    }
+    const one = word[i];
+    if(ELEMENTS_1[one]){ found.push({sym: one, name: ELEMENTS_1[one], idx:[i]}); }
+    i += 1;
+  }
+  return found;
+}
+
+function tierOf(l){ return LETTER_TIERS[l] ?? 0; }
+
+/* true only if every index in idxs sits back-to-back (AA---), as opposed
+   to the same letters scattered apart (A--A-) */
+function isConsecutive(idxs){
+  const s=[...idxs].sort((a,b)=>a-b);
+  for(let i=1;i<s.length;i++){ if(s[i]!==s[i-1]+1) return false; }
+  return true;
+}
+
+
+/* ================= state ================= */
+let spinning = false;
+let spinCount = 0;
+let lastRollScore = 0;
+let bestScore = 0;
+let recent = [];
+let fullHistory = [];
+const earnedBadges = new Set();
+
+const gameCardEl = document.querySelector('.game-card');
+const tilesEl = document.getElementById('tiles');
+const rollBtn = document.getElementById('rollBtn');
+const totalScoreEl = document.getElementById('lastRollScore');
+const spinCountEl = document.getElementById('spinCount');
+const bestScoreEl = document.getElementById('bestScore');
+const badgeListEl = document.getElementById('badgeList');
+const breakdownSubEl = document.getElementById('breakdownSub');
+const recentEl = document.getElementById('recent');
+const resetBtn = document.getElementById('resetBtn');
+
+const tileRefs = [];
+for(let i=0;i<5;i++){
+  const t = document.createElement('div');
+  t.className = 'tile';
+  t.textContent = '';
+  tilesEl.appendChild(t);
+  tileRefs.push(t);
+}
+
+function randLetter(){ return ALPHABET[Math.floor(Math.random()*26)]; }
+
+/* ================= combo engine ================= */
+function tilesHTML(word, hit, revealedCount){
+  const rc = revealedCount === undefined ? word.length : revealedCount;
+  const hitSet = new Set(hit || []);
+  return word.split('').map((l,i) => `<div class="mini-tile ${hitSet.has(i)?'hit':''}">${i < rc ? l : ''}</div>`).join('');
+}
+
+
+/* a run counts as a "streak" only when its letters sit back-to-back
+   (AA---), as opposed to the same letters scattered apart (A--A-).
+   Always surfaces as the same uncommon-rarity badge, worth the same
+   points as the pair/trio/poker it echoes. */
+function streakBadge(idxs, base, letter){
+  if(!isConsecutive(idxs)) return null;
+  const words = {2:'pair',3:'trio',4:'poker'};
+  return {name:'STREAK',icon:'⚡',rarity:'uncommon',points:base*2,desc:`${idxs.length} adjacent ${letter}'s in a row — same as a ${words[idxs.length]||idxs.length+'-of-a-kind'}, doubled for the streak.`,highlight:idxs,announce:true};
+}
+
+function evaluate(word){
+ const letters=word.split('');
+ const matches=[];
+ const groups={};
+ letters.forEach((l,i)=>(groups[l]=groups[l]||[]).push(i));
+ const sorted=Object.values(groups).sort((a,b)=>b.length-a.length);
+ const maxN=sorted[0].length;
+
+ if(maxN===5){
+   const t=tierOf(letters[sorted[0][0]]);
+   matches.push({name:'QUINTET',icon:'★',rarity:'legendary',points:10000000+t*100000,desc:'All five letters match.',highlight:[0,1,2,3,4]});
+ } else if(maxN===4){
+   const t=tierOf(letters[sorted[0][0]]);
+   const base=8000+t*100;
+   matches.push({name:'QUARTET',icon:'◆',rarity:'rare',points:base,desc:'Four matching letters.',highlight:sorted[0]});
+   const s=streakBadge(sorted[0], base, letters[sorted[0][0]]);
+   if(s) matches.push(s);
+ } else if(maxN===3 && sorted[1] && sorted[1].length===2){
+   const t=tierOf(letters[sorted[0][0]]);
+   matches.push({name:'FULL HOUSE',icon:'▲',rarity:'rare',points:3000+t*100,desc:'Triple and pair.',highlight:[0,1,2,3,4]});
+   const tripleBase=220+t*10;
+   const s1=streakBadge(sorted[0], tripleBase, letters[sorted[0][0]]);
+   if(s1) matches.push(s1);
+   const pt=tierOf(letters[sorted[1][0]]);
+   const pairBase=30+pt;
+   const s2=streakBadge(sorted[1], pairBase, letters[sorted[1][0]]);
+   if(s2) matches.push(s2);
+ } else if(maxN===3){
+   const t=tierOf(letters[sorted[0][0]]);
+   const base=220+t*10;
+   matches.push({name:'TRIAD',icon:'●',rarity:'uncommon',points:base,desc:'Three matching letters.',highlight:sorted[0]});
+   const s=streakBadge(sorted[0], base, letters[sorted[0][0]]);
+   if(s) matches.push(s);
+ } else if(maxN===2){
+   const pairs=sorted.filter(g=>g.length===2);
+   if(pairs.length>=2){
+      const avg=Math.round((tierOf(letters[pairs[0][0]])+tierOf(letters[pairs[1][0]]))/2);
+      matches.push({name:'MIRROR',icon:'◐',rarity:'uncommon',points:150+avg*10,desc:'Two separate pairs.',highlight:pairs[0].concat(pairs[1])});
+      pairs.forEach(p=>{
+        const pt=tierOf(letters[p[0]]);
+        const s=streakBadge(p, 30+pt, letters[p[0]]);
+        if(s) matches.push(s);
+      });
+   } else {
+      const t=tierOf(letters[pairs[0][0]]);
+      const base=30+t;
+      matches.push({name:'ECHO',icon:'○',rarity:'common',points:base,desc:'One matching pair.',highlight:pairs[0]});
+      const s=streakBadge(pairs[0], base, letters[pairs[0][0]]);
+      if(s) matches.push(s);
+   }
+ }
+
+ /* alphabetical order badges — how far the letters run in order starting
+    from the very first tile dealt. "Order" only needs increasing or
+    decreasing values (gaps allowed); "chain" needs true back-to-back
+    letters (A,B,C — no gaps). The 5-letter chain case is STAIRWAY above,
+    so it's excluded here to avoid a duplicate badge. */
+ function longestPrefixRun(strict){
+   const codes = letters.map(l=>l.charCodeAt(0));
+   let ascLen=1;
+   for(let i=1;i<5;i++){ const d=codes[i]-codes[i-1]; if(strict? d===1 : d>0) ascLen++; else break; }
+   let descLen=1;
+   for(let i=1;i<5;i++){ const d=codes[i-1]-codes[i]; if(strict? d===1 : d>0) descLen++; else break; }
+   return Math.max(ascLen, descLen);
+ }
+ const looseRun = longestPrefixRun(false);
+ const strictRun = longestPrefixRun(true);
+ if(looseRun>=3){
+   const pts = looseRun>=5 ? 200 : (looseRun===4 ? 50 : 15);
+   matches.push({name:'RUN OF '+looseRun,icon:'⤳',rarity:'common',points:pts,desc:`First ${looseRun} letters climb (or fall) in alphabetical order — gaps allowed.`,highlight:Array.from({length:looseRun},(_,i)=>i)});
+ }
+ if(strictRun>=3 && strictRun<5){
+   const pts = strictRun===4 ? 15000 : 900;
+   matches.push({name:'CHAIN OF '+strictRun,icon:'⇒',rarity:'rare',points:pts,desc:`First ${strictRun} letters are back-to-back in the alphabet, no gaps.`,highlight:Array.from({length:strictRun},(_,i)=>i),announce:true});
+ }
+
+ let asc=true, desc=true;
+ const codes=letters.map(l=>l.charCodeAt(0));
+ for(let i=1;i<5;i++){ if(codes[i]!==codes[i-1]+1) asc=false; if(codes[i]!==codes[i-1]-1) desc=false; }
+ if(asc||desc) matches.push({name:'STAIRWAY',icon:'↗',rarity:'legendary',points:1000000,desc:'Alphabetical run.',highlight:[0,1,2,3,4]});
+
+ if(W5_EN.has(word)) matches.push({name:'LEXICON',icon:'▣',rarity:'rare',points:8400,desc:'English word.',highlight:[0,1,2,3,4]});
+
+ LANGS.forEach(lang=>{ if(lang.set.has(word)) matches.push({name:'POLYGLOT',icon:'◈',rarity:'rare',points:100000,desc:`Word in ${lang.name}.`,highlight:[0,1,2,3,4]}); });
+
+ const CULTURE_NAMES = {2:'TWO LETTER ACRONYM', 3:'THREE LETTER ACRONYM', 4:'FOUR LETTER ACRONYM'};
+ for(const k of CULTURE_WORDS){
+   const kIdx = word.indexOf(k);
+   if(kIdx !== -1) matches.push({name:CULTURE_NAMES[k.length] || 'ACRONYM',icon:'☉',rarity:'culture',isCulture:true,points:cultureBasePoints(k.length),desc:`${k} — ${CULTURE_DEFS[k]} · ${k.length}x combo scaling.`,highlight:Array.from({length:k.length},(_,i)=>kIdx+i)});
+ }
+
+ for(const nm of NAMES){
+   const nmIdx = word.indexOf(nm);
+   if(nmIdx !== -1) matches.push({name:'NAME DROP',icon:'☺',rarity:'uncommon',points:nameBasePoints(nm.length),desc:nm+' — a familiar face.',highlight:Array.from({length:nm.length},(_,i)=>nmIdx+i)});
+ }
+
+ const elementHits = findElements(word);
+ elementHits.forEach(e => {
+   matches.push({name:'PERIODIC ELEMENT',icon:'⚛',rarity:'common',points: e.idx.length===2 ? 10 : 2,
+     desc: `${e.sym} — ${e.name}.`,
+     highlight: e.idx});
+ });
+
+ /* amino acids — single-letter codes for all 20 standard amino acids.
+    20 of the 26 letters qualify, so this fires on nearly every roll;
+    kept to the lowest point tier in the game (below PERIODIC ELEMENT,
+    which is rarer at 14/26 letters). */
+ const AMINO_ACIDS = { A:'Alanine', R:'Arginine', N:'Asparagine', D:'Aspartic acid', C:'Cysteine',
+   E:'Glutamic acid', Q:'Glutamine', G:'Glycine', H:'Histidine', I:'Isoleucine', L:'Leucine',
+   K:'Lysine', M:'Methionine', F:'Phenylalanine', P:'Proline', S:'Serine', T:'Threonine',
+   W:'Tryptophan', Y:'Tyrosine', V:'Valine' };
+ letters.forEach((l,i) => {
+   if(AMINO_ACIDS[l]) matches.push({name:'AMINO ACID',icon:'Ψ',rarity:'common',points:1,
+     desc:`${l} — ${AMINO_ACIDS[l]}, one of the 20 standard amino acids.`, highlight:[i]});
+ });
+
+ /* nucleotides — only 5/26 letters qualify (A, T, C, G, U), so this is
+    noticeably rarer than the amino-acid badge above despite the similar
+    single-letter mechanic. */
+ const NUCLEOTIDES = { A:'Adenine', T:'Thymine — found in DNA', C:'Cytosine', G:'Guanine', U:'Uracil — found in RNA' };
+ letters.forEach((l,i) => {
+   if(NUCLEOTIDES[l]) matches.push({name:'NUCLEOTIDE',icon:'Ω',rarity:'common',points:5,
+     desc:`${l} — ${NUCLEOTIDES[l]}.`, highlight:[i]});
+ });
+
+ /* full strand — all four DNA or RNA nucleotide letters present anywhere
+    in the roll (order doesn't matter). Needing 4 specific letters out of
+    5 slots is a genuinely rare event (~1 in 4,125), so this pays out at
+    the same scale as QUARTET/FULL HOUSE rather than the tiny per-letter
+    nucleotide badge above. */
+ const letterSet = new Set(letters);
+ if(['A','C','T','G'].every(l => letterSet.has(l))){
+   matches.push({name:'FULL DNA',icon:'⬢',rarity:'rare',points:8500,
+     desc:'A, C, T and G all present — a complete set of DNA nucleotides. About 1 in 4,125.',
+     highlight:[0,1,2,3,4],announce:true});
+ }
+ if(['A','C','T','U'].every(l => letterSet.has(l))){
+   matches.push({name:'FULL RNA',icon:'⬢',rarity:'rare',points:8500,
+     desc:'A, C, T and U all present — a complete set of RNA nucleotides. About 1 in 4,125.',
+     highlight:[0,1,2,3,4],announce:true});
+ }
+
+ /* symmetry: the center is always the 3rd letter (index 2). A mirror pair
+    can sit right next to it (index 1 & 3, e.g. -A-J-A- style "A-J-A") or
+    further out at the very ends (index 0 & 4) — neither needs to be
+    adjacent to count. Only a false match here previously (like AVVYV)
+    came from checking off-center windows, which this no longer does. */
+ const innerMirror = letters[1]===letters[3];
+ const outerMirror = letters[0]===letters[4];
+ if(innerMirror && outerMirror){
+   matches.push({name:'SYMMETRY',icon:'⟷',rarity:'rare',points:2500,desc:'Full five-letter mirror symmetry.',highlight:[0,1,2,3,4]});
+ } else if(innerMirror || outerMirror){
+   const hi = innerMirror ? [1,2,3] : [0,2,4];
+   matches.push({name:'SYMMETRY',icon:'⟷',rarity:'uncommon',points:150,desc:'Mirrored letters around the center.',highlight:hi});
+ }
+
+ let f4=0,f3=0,f2=0; const buriedHit=new Set(), nestedHit=new Set(), sparkHit=new Set();
+ for(let i=0;i<=1;i++) if(W4.has(word.slice(i,i+4))){ f4++; for(let k=i;k<i+4;k++) buriedHit.add(k); }
+ for(let i=0;i<=2;i++) if(W3.has(word.slice(i,i+3))){ f3++; for(let k=i;k<i+3;k++) nestedHit.add(k); }
+ for(let i=0;i<=3;i++) if(W2.has(word.slice(i,i+2))){ f2++; for(let k=i;k<i+2;k++) sparkHit.add(k); }
+ if(f4) matches.push({name:'BURIED',icon:'▤',rarity:'rare',points:220*f4,desc:'Hidden 4-letter word.',highlight:[...buriedHit]});
+ if(f3) matches.push({name:'NESTED',icon:'▥',rarity:'common',points:80*f3,desc:'Hidden 3-letter word.',highlight:[...nestedHit]});
+ if(f2) matches.push({name:'SPARK',icon:'✎',rarity:'common',points:15*f2,desc:'Hidden 2-letter word.',highlight:[...sparkHit]});
+ if(f3+f4>=4) matches.push({name:'WORD HOARD',icon:'❖',rarity:'legendary',points:15000,desc:`${f3+f4} nested words at once — a lexical jackpot.`,highlight:[0,1,2,3,4],announce:true});
+
+ const syll=[]; const V=new Set(['A','E','I','O','U']);
+ for(let i=0;i<4;i++) if(V.has(letters[i])!==V.has(letters[i+1])) syll.push(1);
+ if(syll.length) matches.push({name:'SYLLABLE',icon:'♪',rarity:'common',points:10*syll.length,desc:'Pronounceable transitions.',highlight:[0,1,2,3,4]});
+
+ const vowels=letters.filter(l=>V.has(l)).length;
+ if(vowels>=3) matches.push({name:'CHORUS',icon:'✦',rarity:'common',points:vowels===3?60:vowels===4?80:100,desc:'Vowel-rich roll.',highlight:[0,1,2,3,4]});
+
+ let hiIdx = 0;
+ for(let i=1;i<5;i++){ if(tierOf(letters[i]) > tierOf(letters[hiIdx])) hiIdx = i; }
+ const hiPts = tierOf(letters[hiIdx]) + 1;
+ matches.push({name:'HIGH CARD',icon:'♛',rarity:'common',points:hiPts,desc:`Highest-tier letter is ${letters[hiIdx]} — tier ${hiPts} of 6.`,highlight:[hiIdx]});
+
+ const rarityRank={legendary:0,culture:1,rare:2,uncommon:3,common:4};
+ matches.sort((a,b)=>rarityRank[a.rarity]-rarityRank[b.rarity]||b.points-a.points);
+ const total=matches.reduce((s,m)=>s+m.points,0);
+ return {matches,total};
+}
+
+
+/* ================= roll flow ================= */
+const sequentialToggle = document.getElementById('sequentialToggle');
+const switchLabel = document.getElementById('switchLabel');
+let sequentialReveal = sequentialToggle.checked;
+let rollStage = 0;            // how many tiles have been locked so far, in one-by-one mode
+let stageLetters = [];        // the letters committed to for the current in-progress roll
+let stageIntervals = [];      // per-tile flicker intervals, running for every not-yet-locked tile at once
+let currentMatches = [];      // this roll's full badge list, computed up front so it can be revealed progressively
+let currentTotal = 0;
+let shownBadgeIdxs = new Set();
+
+function resetTilesVisual(){
+  tileRefs.forEach(t => { t.textContent = ''; t.classList.remove('spinning','locked'); });
+}
+
+const darkModeToggle = document.getElementById('darkModeToggle');
+const darkModeLabel = document.getElementById('darkModeLabel');
+darkModeToggle.addEventListener('change', () => {
+  document.body.classList.toggle('dark', darkModeToggle.checked);
+  darkModeLabel.textContent = darkModeToggle.checked ? 'dark mode' : 'light mode';
+});
+
+const speedControl = document.getElementById('speedControl');
+const speedSlider = document.getElementById('speedSlider');
+const speedLabel = document.getElementById('speedLabel');
+let quickRollGap = parseInt(speedSlider.value, 10); // ms between each letter reveal, quick-roll mode only
+
+function updateSpeedControlVisibility(){
+  /* only makes sense in quick roll, where tiles reveal on their own —
+     in one-by-one mode each tile is revealed by a manual click instead */
+  speedControl.classList.toggle('hidden', sequentialReveal);
+}
+
+speedSlider.addEventListener('input', () => {
+  quickRollGap = parseInt(speedSlider.value, 10);
+  speedLabel.textContent = (quickRollGap / 1000).toFixed(1) + 's';
+});
+
+/* true whenever a roll has been started but not every letter has been
+   dealt yet — covers mid-flicker (spinning) AND the gaps between clicks
+   in one-by-one mode (rollStage > 0 but not yet 5). While true, the
+   mode switch is locked so a bad partial roll can't be abandoned in
+   favor of a fresh set from the other mode. */
+function rollInProgress(){
+  return spinning || rollStage > 0;
+}
+function updateToggleLockState(){
+  const locked = rollInProgress();
+  sequentialToggle.disabled = locked;
+  sequentialToggle.closest('.switch').classList.toggle('disabled', locked);
+}
+
+sequentialToggle.addEventListener('change', () => {
+  if(rollInProgress()){
+    /* shouldn't fire since the input is disabled mid-roll, but guard
+       against it anyway and just revert the click */
+    sequentialToggle.checked = !sequentialToggle.checked;
+    return;
+  }
+  sequentialReveal = sequentialToggle.checked;
+  switchLabel.textContent = sequentialReveal ? 'one by one' : 'Quick roll';
+  updateSpeedControlVisibility();
+});
+updateSpeedControlVisibility();
+updateToggleLockState();
+
+function lockTile(t, letter){
+  t.classList.remove('spinning');
+  t.textContent = letter;
+  t.classList.add('locked');
+  setTimeout(() => t.classList.remove('locked'), 450);
+}
+
+let pendingRevealTimers = [];
+function clearPendingReveals(){
+  pendingRevealTimers.forEach(id => clearTimeout(id));
+  pendingRevealTimers = [];
+}
+
+let runningScore = 0;
+let scoreAnimId = 0; /* bumped on every new animation so a stale rAF loop knows to stop */
+function resetRunningScore(){
+  runningScore = 0;
+  scoreAnimId++;
+  totalScoreEl.classList.remove('bump');
+  totalScoreEl.textContent = 0;
+}
+/* animates the score plate counting up rapidly from whatever is currently
+   displayed to the new target, instead of snapping straight to it. Reads
+   the currently-displayed number as the start point so back-to-back bumps
+   (badges landing close together) chain smoothly rather than jumping. */
+function animateScoreTo(target, duration){
+  const start = parseInt(totalScoreEl.textContent, 10) || 0;
+  const id = ++scoreAnimId;
+  const t0 = performance.now();
+  function step(now){
+    if(id !== scoreAnimId) return; /* superseded by a newer bump — bail out */
+    const t = Math.min((now - t0) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 3); /* ease-out so it slows into the landing number */
+    totalScoreEl.textContent = Math.round(start + (target - start) * eased);
+    if(t < 1) requestAnimationFrame(step);
+    else totalScoreEl.textContent = target;
+  }
+  requestAnimationFrame(step);
+}
+function bumpRunningScore(points){
+  runningScore += points;
+  animateScoreTo(runningScore, 380);
+  totalScoreEl.classList.remove('bump');
+  void totalScoreEl.offsetWidth; /* force reflow so the animation restarts every time */
+  totalScoreEl.classList.add('bump');
+}
+
+function badgeCardHTML(m, word, revealedCount){
+  return `
+    <div class="badge-card ${m.rarity!=='common'?'r-'+m.rarity:''} ${m.announce?'announce':''}">
+      <div class="badge-header">
+        <div class="badge-titles">
+          <span class="badge-icon">${m.icon}</span>
+          <span class="badge-name">${m.name}</span>
+          <span class="rarity-pill rarity-${m.rarity}">${m.rarity}</span>
+        </div>
+        <span class="points-pill">+${m.points}</span>
+      </div>
+      <div class="badge-desc">${m.desc}</div>
+      <div class="mini-tiles">${tilesHTML(word, m.highlight, revealedCount)}</div>
+    </div>`;
+}
+
+function appendBadgeCard(m, word, revealedCount){
+  const wrap = document.createElement('div');
+  wrap.innerHTML = badgeCardHTML(m, word, revealedCount).trim();
+  const card = wrap.firstElementChild;
+  /* the list is always kept sorted highest-points-first: find the first
+     existing card worth less than this one and insert right above it,
+     pushing it (and everything below it) down. In one-by-one mode
+     badges become eligible in whatever order their letters land, not
+     in point order, so a plain "always insert at top" wouldn't keep
+     the list sorted — this does regardless of reveal order. */
+  card.dataset.points = m.points;
+  const insertBeforeEl = Array.from(badgeListEl.children)
+    .find(el => parseFloat(el.dataset.points) < m.points);
+  if(insertBeforeEl){
+    badgeListEl.insertBefore(card, insertBeforeEl);
+  } else {
+    badgeListEl.appendChild(card);
+  }
+  requestAnimationFrame(() => card.classList.add('show'));
+  bumpRunningScore(m.points);
+}
+
+/* schedules a small stagger between newly-eligible badges so they still
+   land one at a time rather than all snapping in together */
+function scheduleBadgeReveals(list, word, revealedCount){
+  let delay = 60;
+  list.forEach(m => {
+    delay += m.announce ? 200 : 0;
+    const revealAt = delay;
+    const id = setTimeout(() => appendBadgeCard(m, word, revealedCount), revealAt);
+    pendingRevealTimers.push(id);
+    delay += m.announce ? 620 : 380;
+  });
+  return delay;
+}
+
+/* one-by-one mode: as each tile locks in, immediately surface any badge
+   whose relevant tiles are now fully visible, instead of waiting for the
+   whole word to be dealt. The full badge list was already computed up
+   front (the word is decided the moment dealing starts), so this only
+   controls *when* each already-known badge gets revealed. Returns how
+   long the caller should wait before those badges have all landed. */
+function revealEligibleBadges(revealedCount){
+  const newlyEligible = [];
+  currentMatches.forEach((m, idx) => {
+    if(shownBadgeIdxs.has(idx)) return;
+    if(m.highlight.every(hIdx => hIdx < revealedCount)){
+      shownBadgeIdxs.add(idx);
+      newlyEligible.push(m);
+    }
+  });
+  return newlyEligible.length ? scheduleBadgeReveals(newlyEligible, stageLetters.join(''), revealedCount) : 0;
+}
+
+function roll(){
+  if(spinning) return;
+  spinning = true;
+  rollBtn.disabled = true;
+  updateToggleLockState();
+
+  if(sequentialReveal){
+    /* one click = one tile. Start a fresh set of letters on the first
+       click of a sequence, then reveal one more each time the player
+       presses roll again, until all five are locked. All five tiles
+       flicker together for the whole sequence — only the animation
+       changes, the click-by-click pacing stays the same. */
+    if(rollStage === 0){
+      stageLetters = Array.from({length:5}, randLetter);
+      resetTilesVisual();
+      const evalResult = evaluate(stageLetters.join(''));
+      currentMatches = evalResult.matches;
+      currentTotal = evalResult.total;
+      shownBadgeIdxs = new Set();
+      clearPendingReveals();
+      resetRunningScore();
+      badgeListEl.innerHTML = '';
+      breakdownSubEl.textContent = 'Dealing…';
+      stageIntervals = tileRefs.map(t => {
+        t.classList.add('spinning');
+        return setInterval(() => { t.textContent = randLetter(); }, 40);
+      });
+    }
+    const i = rollStage;
+    const t = tileRefs[i];
+    setTimeout(() => {
+      clearInterval(stageIntervals[i]);
+      lockTile(t, stageLetters[i]);
+      rollStage++;
+      spinning = false;
+      rollBtn.disabled = false;
+      const revealDelay = revealEligibleBadges(rollStage);
+      if(rollStage === 5){
+        const word = stageLetters.join('');
+        rollStage = 0;
+        const id = setTimeout(() => commitRollResult(word, currentMatches, currentTotal), revealDelay);
+        pendingRevealTimers.push(id);
+      }
+      updateToggleLockState();
+    }, 480);
+  } else {
+    /* quick roll — tiles reveal in a staggered sequence, spaced out by
+       whatever gap the speed slider is currently set to */
+    clearPendingReveals();
+    resetRunningScore();
+    badgeListEl.innerHTML = '';
+    breakdownSubEl.textContent = 'Dealing…';
+    const finalLetters = Array.from({length:5}, randLetter);
+    const delays = [0,1,2,3,4].map(i => 500 + i * quickRollGap);
+    tileRefs.forEach((t, i) => {
+      t.classList.add('spinning');
+      const iv = setInterval(() => { t.textContent = randLetter(); }, 40);
+      setTimeout(() => {
+        clearInterval(iv);
+        lockTile(t, finalLetters[i]);
+        if(i === 4) finishRoll(finalLetters.join(''));
+      }, delays[i]);
+    });
+  }
+}
+
+/* quick roll: badges land smallest-to-largest, one every quickRollGap
+   ms — the same pacing the speed slider already controls for tiles —
+   so the score-bump animation has time to actually be seen. */
+function scheduleQuickRollBadgeReveals(matches, word, total){
+  const ordered = matches.slice().sort((a,b) => a.points - b.points);
+  let delay = 150;
+  ordered.forEach(m => {
+    const id = setTimeout(() => appendBadgeCard(m, word), delay);
+    pendingRevealTimers.push(id);
+    delay += quickRollGap;
+  });
+  const finalId = setTimeout(() => commitRollResult(word, matches, total), delay);
+  pendingRevealTimers.push(finalId);
+}
+
+/* shared tail of a roll: stats, history, highscore flash. By the time
+   this runs the score plate has already been bumped up badge by badge,
+   so this just makes sure it lands exactly on the true total. */
+function commitRollResult(word, matches, total){
+  spinCount++;
+  lastRollScore = total;
+  const isNewHighscore = total > bestScore;
+  bestScore = Math.max(bestScore, total);
+
+  runningScore = total;
+  totalScoreEl.textContent = total;
+  spinCountEl.textContent = spinCount;
+  bestScoreEl.textContent = bestScore;
+
+  breakdownSubEl.textContent = `${word} · ${matches.length} badge${matches.length===1?'':'s'} · +${total} pts`;
+
+  recent.unshift({word, total});
+  recent = recent.slice(0, 10);
+  recentEl.innerHTML = recent.map(r => `<div class="recent-chip">${r.word} <b>+${r.total}</b></div>`).join('');
+
+  fullHistory.unshift({ n: spinCount, word, total, matches });
+  fullHistory = fullHistory.slice(0, 200);
+  matches.forEach(m => earnedBadges.add(m.name));
+  if(historyModal.classList.contains('open')) renderHistoryModal();
+  if(almanacModal.classList.contains('open')) renderAlmanacModal();
+
+  if(isNewHighscore){
+    gameCardEl.classList.remove('highscore-flash');
+    void gameCardEl.offsetWidth; /* force reflow so the animation can restart */
+    gameCardEl.classList.add('highscore-flash');
+  }
+
+  spinning = false;
+  rollBtn.disabled = false;
+  updateToggleLockState();
+}
+
+function finishRoll(word){
+  const { matches, total } = evaluate(word);
+  scheduleQuickRollBadgeReveals(matches, word, total);
+}
+
+function resetGame(){
+  spinCount = 0; lastRollScore = 0; bestScore = 0; recent = [];
+  fullHistory = []; earnedBadges.clear();
+  stageIntervals.forEach(iv => clearInterval(iv));
+  clearPendingReveals();
+  rollStage = 0; stageLetters = []; stageIntervals = [];
+  currentMatches = []; currentTotal = 0; shownBadgeIdxs = new Set();
+  spinning = false;
+  updateToggleLockState();
+  resetTilesVisual();
+  resetRunningScore();
+  spinCountEl.textContent = 0;
+  bestScoreEl.textContent = 0;
+  breakdownSubEl.textContent = 'Roll to see what you earn';
+  badgeListEl.innerHTML = '';
+  recentEl.innerHTML = '';
+  renderHistoryModal();
+  renderAlmanacModal();
+}
+
+/* ================= almanac (static reference list of every badge type) ================= */
+const ALMANAC = [
+  {name:'QUINTET', rarity:'legendary', desc:'All five letters match.', odds:'1 in ~456,976'},
+  {name:'STAIRWAY', rarity:'legendary', desc:'Five letters in alphabetical order, forward or backward, no gaps.', odds:'1 in ~270,000'},
+  {name:'WORD HOARD', rarity:'legendary', desc:'Four or more hidden words (3- or 4-letter) inside one roll.', odds:'very rare — needs a dense roll'},
+  {name:'FOUR LETTER ACRONYM', rarity:'culture', desc:'A known 4-letter acronym like NATO or EEUU.', odds:'1 in ~114,000 per acronym'},
+  {name:'CHAIN OF 4', rarity:'rare', desc:'The first four letters dealt are back-to-back in the alphabet.', odds:'≈1 in 10,300'},
+  {name:'SYMMETRY', rarity:'rare / uncommon', desc:'One or both mirror pairs around the center match.', odds:'partial ≈1 in 14, full ≈1 in 676'},
+  {name:'QUARTET', rarity:'rare', desc:'Four of the five letters match.', odds:'1 in ~3,655'},
+  {name:'FULL HOUSE', rarity:'rare', desc:'A triple and a pair together.', odds:'1 in ~1,828'},
+  {name:'LEXICON', rarity:'rare', desc:'The five letters spell a real English word.', odds:'≈1 in 3,830'},
+  {name:'POLYGLOT', rarity:'rare', desc:'A real word in Spanish, French, Catalan, or Italian.', odds:'≈1 in 2,000'},
+  {name:'BURIED', rarity:'rare', desc:'A hidden 4-letter word inside the roll.', odds:'≈1 in 101'},
+  {name:'CHAIN OF 3', rarity:'rare', desc:'The first three letters dealt are back-to-back in the alphabet.', odds:'≈1 in 380'},
+  {name:'THREE LETTER ACRONYM', rarity:'culture', desc:'A known 3-letter acronym or place code like LOL or ESP.', odds:'≈1 in 650 per acronym'},
+  {name:'TWO LETTER ACRONYM', rarity:'culture', desc:'A known 2-letter shorthand like LA or NY.', odds:'≈1 in 85 per acronym'},
+  {name:'TRIAD', rarity:'uncommon', desc:'Three matching letters.', odds:'≈1 in 76'},
+  {name:'MIRROR', rarity:'uncommon', desc:'Two separate matching pairs.', odds:'≈1 in 51'},
+  {name:'STREAK', rarity:'uncommon', desc:'Matching letters sit back-to-back rather than scattered — doubles that combo\'s points.', odds:'varies with the pattern'},
+  {name:'NAME DROP', rarity:'uncommon', desc:'A common first name hidden in the roll.', odds:'depends on the name list'},
+  {name:'ECHO', rarity:'common', desc:'One matching pair.', odds:'≈1 in 3'},
+  {name:'RUN OF 5', rarity:'common', desc:'All five letters climb or fall in alphabetical order (gaps allowed).', odds:'≈1 in 90'},
+  {name:'RUN OF 4', rarity:'common', desc:'The first four letters climb or fall in alphabetical order (gaps allowed).', odds:'≈1 in 18'},
+  {name:'RUN OF 3', rarity:'common', desc:'The first three letters climb or fall in alphabetical order (gaps allowed).', odds:'≈1 in 4'},
+  {name:'NESTED', rarity:'common', desc:'A hidden 3-letter word inside the roll.', odds:'≈1 in 6'},
+  {name:'SPARK', rarity:'common', desc:'A hidden 2-letter word inside the roll (from a short curated list).', odds:'uncommon — short list, ≈1%'},
+  {name:'SYLLABLE', rarity:'common', desc:'Pronounceable vowel/consonant transitions.', odds:'very common'},
+  {name:'CHORUS', rarity:'common', desc:'Three or more of the five letters are vowels.', odds:'≈1 in 19'},
+  {name:'PERIODIC ELEMENT', rarity:'common', desc:'A periodic table symbol (like Fe or O) hidden in the roll.', odds:'very common — small payout'},
+  {name:'FULL DNA', rarity:'rare', desc:'A, C, T and G all present in the roll — a complete set of DNA nucleotides.', odds:'≈1 in 4,125'},
+  {name:'FULL RNA', rarity:'rare', desc:'A, C, T and U all present in the roll — a complete set of RNA nucleotides.', odds:'≈1 in 4,125'},
+  {name:'NUCLEOTIDE', rarity:'common', desc:'A letter that names a DNA/RNA base — A, T, C, G, or U.', odds:'≈1 in 5 per letter'},
+  {name:'AMINO ACID', rarity:'common', desc:'A letter that is one of the 20 standard single-letter amino acid codes.', odds:'very common — 20 of 26 letters qualify'},
+  {name:'HIGH CARD', rarity:'common', desc:'Points from your single highest-tier letter: BCDFG=1, HJKLM=2, NPQRS=3, TVWXY=4, Z=5, AEIOU=6.', odds:'every roll'}
+];
+
+const historyModal = document.getElementById('historyModal');
+const almanacModal = document.getElementById('almanacModal');
+const historyBody = document.getElementById('historyBody');
+const almanacBody = document.getElementById('almanacBody');
+const openHistoryBtn = document.getElementById('openHistoryBtn');
+const openAlmanacBtn = document.getElementById('openAlmanacBtn');
+
+function renderHistoryModal(){
+  if(!fullHistory.length){
+    historyBody.innerHTML = `<div class="empty-state">No rolls yet — give it a spin.</div>`;
+    return;
+  }
+  historyBody.innerHTML = fullHistory.map(h => `
+    <div class="history-entry">
+      <div class="history-entry-head">
+        <span class="history-word">#${h.n} · ${h.word}</span>
+        <span class="history-points">+${h.total} pts</span>
+      </div>
+      <div class="history-badges">
+        ${h.matches.map(m => `<span class="history-badge-chip rarity-${m.rarity}">${m.name} +${m.points}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAlmanacModal(){
+  almanacBody.innerHTML = ALMANAC.map(a => {
+    const got = earnedBadges.has(a.name);
+    return `
+    <div class="almanac-entry ${got?'earned':''}">
+      <div class="almanac-left">
+        <div class="almanac-name-row">
+          <span class="almanac-name">${a.name}</span>
+          <span class="rarity-pill rarity-${a.rarity.split(' ')[0]}">${a.rarity}</span>
+        </div>
+        <div class="almanac-desc">${a.desc}</div>
+        <div class="almanac-odds">odds: ${a.odds}</div>
+      </div>
+      <span class="almanac-status ${got?'yes':'no'}">${got?'earned':'not yet'}</span>
+    </div>
+  `;
+  }).join('');
+}
+
+function openModal(id){
+  if(id === 'historyModal') renderHistoryModal();
+  if(id === 'almanacModal') renderAlmanacModal();
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+openHistoryBtn.addEventListener('click', () => openModal('historyModal'));
+openAlmanacBtn.addEventListener('click', () => openModal('almanacModal'));
+document.querySelectorAll('.modal-close').forEach(btn => {
+  btn.addEventListener('click', () => closeModal(btn.dataset.close));
+});
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.classList.remove('open'); });
+});
+
+rollBtn.addEventListener('click', roll);
+resetBtn.addEventListener('click', resetGame);
+</script>
+
+</body>
+</html>

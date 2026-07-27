@@ -1,0 +1,20 @@
+Alanina A
+Arginina R
+Asparagina N
+Àcid aspàrtic D
+Cisteïna C
+Àcid glutàmic E
+Glutamina Q
+Glicina G
+Histidina H
+Isoleucina I
+Leucina L
+Lisina K
+Metionina M
+Fenilalanina F
+Prolina P
+Serina S
+Treonina T
+Triptòfan W
+Tirosina Y
+Valina V
