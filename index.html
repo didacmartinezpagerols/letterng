@@ -1803,6 +1803,23 @@ async function fetchProfile(userId){
 async function handleSession(session){
   currentUser = session ? session.user : null;
   currentProfile = currentUser ? await fetchProfile(currentUser.id) : null;
+
+  if(currentProfile){
+    /* pick up where this account left off, instead of showing the
+       fresh-page defaults of 0 rolls / 0 best score */
+    spinCount = currentProfile.total_rolls ?? 0;
+    bestScore = currentProfile.best_score ?? 0;
+    spinCountEl.textContent = spinCount;
+    bestScoreEl.textContent = bestScore;
+  } else if(!currentUser){
+    /* signed out: this device is now a guest again, so don't keep
+       showing someone else's stats on screen */
+    spinCount = 0;
+    bestScore = 0;
+    spinCountEl.textContent = 0;
+    bestScoreEl.textContent = 0;
+  }
+
   updateAuthButton();
   if(authModal.classList.contains('open')) renderAuthModal();
 }
