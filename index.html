@@ -577,6 +577,15 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   font-weight: 700;
   font-size: 1rem;
 }
+.modal-subtitle{
+  font-family:'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-left: 8px;
+}
 .modal-close{
   background: none;
   border: none;
@@ -745,6 +754,14 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   color: var(--muted);
   text-transform: uppercase;
 }
+.auth-profile-word{
+  font-family:'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--secondary-text);
+  margin-bottom: 18px;
+}
+.auth-profile-word b{ color: var(--ink); text-transform: uppercase; }
 .auth-signout{
   font-family:'Inter', sans-serif;
   font-size: 0.78rem;
@@ -777,11 +794,22 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 .leaderboard-row.top1 .leaderboard-rank{ color: var(--legendary-text); }
 .leaderboard-row.top2 .leaderboard-rank{ color: var(--rare-text); }
 .leaderboard-row.top3 .leaderboard-rank{ color: var(--uncommon-text); }
-.leaderboard-name{
+.leaderboard-name-block{
   flex: 1;
+  min-width: 0;
+}
+.leaderboard-name{
   font-family:'Space Grotesk', sans-serif;
   font-weight: 600;
   font-size: 0.88rem;
+}
+.leaderboard-word{
+  font-family:'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 2px;
 }
 .leaderboard-name.you::after{
   content: 'you';
@@ -936,7 +964,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 <div class="modal-overlay" id="leaderboardModal">
   <div class="modal-panel">
     <div class="modal-head">
-      <div class="modal-title">Leaderboard</div>
+      <div class="modal-title">Leaderboard<span class="modal-subtitle">resets daily</span></div>
       <button class="modal-close" data-close="leaderboardModal">✕</button>
     </div>
     <div class="modal-body" id="leaderboardBody"></div>
@@ -1629,7 +1657,7 @@ function commitRollResult(word, matches, total){
   matches.forEach(m => earnedBadges.add(m.name));
   if(historyModal.classList.contains('open')) renderHistoryModal();
   if(almanacModal.classList.contains('open')) renderAlmanacModal();
-  logRollToLeaderboard(total);
+  logRollToLeaderboard(total, word);
 
   if(isNewHighscore){
     gameCardEl.classList.remove('highscore-flash');
@@ -1778,7 +1806,7 @@ const leaderboardBody = document.getElementById('leaderboardBody');
 const openLeaderboardBtn = document.getElementById('openLeaderboardBtn');
 
 let currentUser = null;
-let currentProfile = null; // { id, user_id, username, best_score, total_rolls }
+let currentProfile = null; // { id, user_id, username, best_score, best_word, total_rolls }
 
 function updateAuthButton(){
   if(currentUser && currentProfile && currentProfile.username){
@@ -1793,7 +1821,7 @@ function updateAuthButton(){
 async function fetchProfile(userId){
   const { data, error } = await sbClient
     .from('Profiles')
-    .select('id,username,best_score,total_rolls,user_id')
+    .select('id,username,best_score,best_word,total_rolls,user_id')
     .eq('user_id', userId)
     .maybeSingle();
   if(error){ console.error('fetchProfile error', error); return null; }
@@ -1845,6 +1873,7 @@ function renderAuthModal(){
           <div class="stat"><b>${currentProfile.best_score ?? 0}</b><span>best score</span></div>
           <div class="stat"><b>${currentProfile.total_rolls ?? 0}</b><span>rolls logged</span></div>
         </div>
+        ${currentProfile.best_word ? `<div class="auth-profile-word">best word: <b>${currentProfile.best_word}</b></div>` : ''}
         <button class="auth-signout" id="signOutBtn">Sign out</button>
       </div>
     `;
@@ -1922,25 +1951,24 @@ function renderAuthModal(){
 
 async function renderLeaderboardModal(){
   leaderboardBody.innerHTML = `<div class="empty-state">Loading…</div>`;
-  const { data, error } = await sbClient
-    .from('Profiles')
-    .select('username,best_score,total_rolls,user_id')
-    .order('best_score', { ascending: false })
-    .limit(50);
+  const { data, error } = await sbClient.rpc('get_daily_leaderboard', { p_limit: 50 });
   if(error){
     leaderboardBody.innerHTML = `<div class="empty-state">Couldn't load the leaderboard.</div>`;
     return;
   }
   if(!data || !data.length){
-    leaderboardBody.innerHTML = `<div class="empty-state">No scores logged yet — be the first!</div>`;
+    leaderboardBody.innerHTML = `<div class="empty-state">No scores logged today — be the first!</div>`;
     return;
   }
   leaderboardBody.innerHTML = data.map((row, i) => `
     <div class="leaderboard-row ${i===0?'top1':i===1?'top2':i===2?'top3':''}">
       <div class="leaderboard-rank">#${i+1}</div>
-      <div class="leaderboard-name ${currentUser && row.user_id===currentUser.id ? 'you':''}">${row.username ?? 'anonymous'}</div>
-      <div class="leaderboard-rolls">${row.total_rolls ?? 0} rolls</div>
-      <div class="leaderboard-score">${row.best_score ?? 0}</div>
+      <div class="leaderboard-name-block">
+        <div class="leaderboard-name ${currentUser && row.user_id===currentUser.id ? 'you':''}">${row.username ?? 'anonymous'}</div>
+        ${row.daily_best_word ? `<div class="leaderboard-word">${row.daily_best_word}</div>` : ''}
+      </div>
+      <div class="leaderboard-rolls">${row.daily_total_rolls ?? 0} rolls</div>
+      <div class="leaderboard-score">${row.daily_best_score ?? 0}</div>
     </div>
   `).join('');
 }
@@ -1948,12 +1976,15 @@ async function renderLeaderboardModal(){
 /* fire-and-forget: logs the completed roll's score to Supabase via the
    log_roll RPC, which safely bumps total_rolls and raises best_score
    server-side. Silently does nothing for signed-out players. */
-async function logRollToLeaderboard(score){
+async function logRollToLeaderboard(score, word){
   if(!currentUser || !currentProfile) return;
   try{
-    const { error } = await sbClient.rpc('log_roll', { p_score: score });
+    const { error } = await sbClient.rpc('log_roll', { p_score: score, p_word: word });
     if(error){ console.error('log_roll error', error); return; }
     currentProfile.total_rolls = (currentProfile.total_rolls || 0) + 1;
+    if(score > (currentProfile.best_score || 0)){
+      currentProfile.best_word = word;
+    }
     currentProfile.best_score = Math.max(currentProfile.best_score || 0, score);
   } catch(err){
     console.error('log_roll failed', err);
