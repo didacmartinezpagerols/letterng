@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>letterng</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
@@ -58,6 +59,11 @@ body.dark{
 
 *{ box-sizing: border-box; }
 
+html, body{
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 body{
   margin:0;
   background: var(--bg);
@@ -68,6 +74,7 @@ body{
   align-items:center;
   padding: 28px 16px 80px;
   transition: background 0.3s ease, color 0.3s ease;
+  width: 100%;
 }
 body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
 
@@ -147,54 +154,60 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   cursor: not-allowed;
 }
 
-.speed-control{
+.roll-mode-switch{
   display:flex;
   align-items:center;
   gap: 8px;
-  transition: opacity 0.2s ease;
 }
-.speed-control.hidden{
-  display:none;
-}
-.speed-label{
-  font-size: 0.68rem;
+.roll-mode-label{
+  font-size:0.62rem;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
   color: var(--muted);
-  white-space: nowrap;
-  min-width: 30px;
-  text-align: right;
+  min-width: 62px;
+  text-align:right;
 }
-.speed-slider{
-  -webkit-appearance: none;
-  appearance: none;
-  width: 64px;
-  height: 4px;
+.roll-mode-toggle{
+  position:relative;
+  width: 60px;
+  height: 24px;
+  border: none;
   border-radius: 999px;
   background: var(--switch-track-off);
-  outline: none;
   cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
 }
-.speed-slider::-webkit-slider-thumb{
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--pink);
-  border: 2px solid var(--surface);
+.roll-mode-dot{
+  position:absolute;
+  top:50%;
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background: var(--muted);
+  opacity: 0.45;
+  transform: translateY(-50%);
+  pointer-events:none;
+}
+.roll-mode-thumb{
+  position:absolute;
+  top:50%;
+  left:4px;
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
   box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-  cursor: pointer;
+  transform: translateY(-50%);
+  transition: left 0.25s ease;
+  z-index:2;
+  pointer-events:none;
 }
-.speed-slider::-moz-range-track{
-  background: var(--switch-track-off);
-  height: 4px;
-  border-radius: 999px;
-}
-.speed-slider::-moz-range-thumb{
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--pink);
-  border: 2px solid var(--surface);
-  cursor: pointer;
+.roll-mode-switch.disabled{
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: not-allowed;
 }
 
 /* ---------- game card ---------- */
@@ -693,14 +706,15 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 <div class="topbar">
   <div class="wordmark">lette<span>rng</span></div>
   <div class="topbar-right">
-    <label class="switch" title="Reveal all five tiles together, or one at a time for extra drama">
-      <span class="switch-label" id="switchLabel">one by one</span>
-      <input type="checkbox" id="sequentialToggle" checked>
-      <span class="switch-track"><span class="switch-thumb"></span></span>
-    </label>
-    <div class="speed-control hidden" id="speedControl" title="Time between each letter reveal during quick roll">
-      <span class="speed-label" id="speedLabel">1.0s</span>
-      <input type="range" class="speed-slider" id="speedSlider" min="300" max="2000" step="100" value="1000">
+    <div class="roll-mode-switch" id="rollModeSwitch" title="Click to cycle: Fast → Medium → Slow → One by one">
+      <span class="roll-mode-label" id="rollModeLabel">Fast</span>
+      <button type="button" class="roll-mode-toggle" id="rollModeToggle" aria-label="Change roll mode">
+        <span class="roll-mode-dot" style="left:9px"></span>
+        <span class="roll-mode-dot" style="left:21px"></span>
+        <span class="roll-mode-dot" style="left:33px"></span>
+        <span class="roll-mode-dot" style="left:45px"></span>
+        <span class="roll-mode-thumb" id="rollModeThumb"></span>
+      </button>
     </div>
     <label class="switch" title="Switch between light and dark theme">
       <span class="switch-label" id="darkModeLabel">light mode</span>
@@ -1174,9 +1188,17 @@ function evaluate(word){
 
 
 /* ================= roll flow ================= */
-const sequentialToggle = document.getElementById('sequentialToggle');
-const switchLabel = document.getElementById('switchLabel');
-let sequentialReveal = sequentialToggle.checked;
+const rollModeSwitch = document.getElementById('rollModeSwitch');
+const rollModeToggle = document.getElementById('rollModeToggle');
+const rollModeThumb = document.getElementById('rollModeThumb');
+const rollModeLabel = document.getElementById('rollModeLabel');
+const ROLL_MODES = ['fast','medium','slow','sequential'];
+const ROLL_MODE_POS = { fast:'4px', medium:'16px', slow:'28px', sequential:'40px' };
+const ROLL_MODE_TEXT = { fast:'Fast', medium:'Medium', slow:'Slow', sequential:'One by one' };
+const ROLL_MODE_GAPS = { fast:300, medium:800, slow:1200 }; // ms between each letter reveal, quick-roll modes only
+let rollMode = 'fast';                     // default: 1st position
+let sequentialReveal = rollMode === 'sequential';
+let quickRollGap = ROLL_MODE_GAPS[rollMode];
 let rollStage = 0;            // how many tiles have been locked so far, in one-by-one mode
 let stageLetters = [];        // the letters committed to for the current in-progress roll
 let stageIntervals = [];      // per-tile flicker intervals, running for every not-yet-locked tile at once
@@ -1195,20 +1217,18 @@ darkModeToggle.addEventListener('change', () => {
   darkModeLabel.textContent = darkModeToggle.checked ? 'dark mode' : 'light mode';
 });
 
-const speedControl = document.getElementById('speedControl');
-const speedSlider = document.getElementById('speedSlider');
-const speedLabel = document.getElementById('speedLabel');
-let quickRollGap = parseInt(speedSlider.value, 10); // ms between each letter reveal, quick-roll mode only
-
-function updateSpeedControlVisibility(){
-  /* only makes sense in quick roll, where tiles reveal on their own —
-     in one-by-one mode each tile is revealed by a manual click instead */
-  speedControl.classList.toggle('hidden', sequentialReveal);
+function setRollMode(mode){
+  rollMode = mode;
+  sequentialReveal = mode === 'sequential';
+  if(ROLL_MODE_GAPS[mode]) quickRollGap = ROLL_MODE_GAPS[mode];
+  rollModeThumb.style.left = ROLL_MODE_POS[mode];
+  rollModeLabel.textContent = ROLL_MODE_TEXT[mode];
 }
 
-speedSlider.addEventListener('input', () => {
-  quickRollGap = parseInt(speedSlider.value, 10);
-  speedLabel.textContent = (quickRollGap / 1000).toFixed(1) + 's';
+rollModeToggle.addEventListener('click', () => {
+  if(rollInProgress()) return; /* guarded by disabled state too, but belt-and-suspenders */
+  const idx = ROLL_MODES.indexOf(rollMode);
+  setRollMode(ROLL_MODES[(idx + 1) % ROLL_MODES.length]);
 });
 
 /* true whenever a roll has been started but not every letter has been
@@ -1221,22 +1241,11 @@ function rollInProgress(){
 }
 function updateToggleLockState(){
   const locked = rollInProgress();
-  sequentialToggle.disabled = locked;
-  sequentialToggle.closest('.switch').classList.toggle('disabled', locked);
+  rollModeSwitch.classList.toggle('disabled', locked);
+  rollModeToggle.disabled = locked;
 }
 
-sequentialToggle.addEventListener('change', () => {
-  if(rollInProgress()){
-    /* shouldn't fire since the input is disabled mid-roll, but guard
-       against it anyway and just revert the click */
-    sequentialToggle.checked = !sequentialToggle.checked;
-    return;
-  }
-  sequentialReveal = sequentialToggle.checked;
-  switchLabel.textContent = sequentialReveal ? 'one by one' : 'Quick roll';
-  updateSpeedControlVisibility();
-});
-updateSpeedControlVisibility();
+setRollMode(rollMode);
 updateToggleLockState();
 
 function lockTile(t, letter){
