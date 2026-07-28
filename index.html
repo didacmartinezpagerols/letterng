@@ -28,6 +28,7 @@
   --switch-track-off: #dcdce0;
   --mini-hit-bg: #15161a;
   --mini-hit-text: #ffffff;
+  --word-tile-outline: #d8cfb8;
 
   --common-bg: #f1f2f4;  --common-text: #63666d;
   --uncommon-bg: #e1f6ea; --uncommon-text: #1f8a4c;
@@ -53,6 +54,7 @@ body.dark{
   --switch-track-off: #3a3a42;
   --mini-hit-bg: #f2f2f5;
   --mini-hit-text: #101014;
+  --word-tile-outline: #3d3e46;
 
   --common-bg: #202127;  --common-text: #b7b9c0;
   --uncommon-bg: #123021; --uncommon-text: #4ade80;
@@ -355,11 +357,6 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   margin-top: 2px;
 }
 
-.stat-row{
-  display:flex;
-  gap: 26px;
-  margin-top: 14px;
-}
 .stat{
   text-align:center;
 }
@@ -373,6 +370,18 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   letter-spacing: 0.12em;
   color: var(--muted);
   text-transform: uppercase;
+}
+
+.best-score-plate{
+  margin-top: 16px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap: 10px;
+}
+.best-score-plate .word-tiles{
+  display:none;
+  gap: 6px;
 }
 
 /* ---------- badge breakdown ---------- */
@@ -494,6 +503,36 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 .mini-tile.hit{
   background: var(--mini-hit-bg);
   color: var(--mini-hit-text);
+}
+
+/* ---------- small word tiles (best word displays) ---------- */
+.word-tiles{
+  display:flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.word-tile{
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1.5px solid var(--ink);
+  background: var(--surface);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 0.62rem;
+  color: var(--ink);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.best-score-plate .word-tile{
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  border: 1.5px solid var(--word-tile-outline);
+  font-size: 1.2rem;
 }
 
 .empty-state{
@@ -803,14 +842,6 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   font-weight: 600;
   font-size: 0.88rem;
 }
-.leaderboard-word{
-  font-family:'IBM Plex Mono', monospace;
-  font-size: 0.68rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-top: 2px;
-}
 .leaderboard-name.you::after{
   content: 'you';
   margin-left: 8px;
@@ -908,9 +939,10 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
     <div class="plate-num" id="lastRollScore">0</div>
     <div class="plate-label">score</div>
   </div>
-  <div class="stat-row">
-    <div class="stat"><b id="spinCount">0</b><span>rolls</span></div>
-    <div class="stat"><b id="bestScore">0</b><span>best roll</span></div>
+  <div class="plate best-score-plate" id="bestScorePlate">
+    <div class="plate-num" id="bestScore">0</div>
+    <div class="word-tiles" id="bestWordTiles"></div>
+    <div class="plate-label">all time best score</div>
   </div>
 </div>
 
@@ -928,7 +960,6 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   <button class="reset-link" id="openHistoryBtn">history</button>
   <button class="reset-link" id="openAlmanacBtn">all badges</button>
   <button class="reset-link" id="openLeaderboardBtn">leaderboard</button>
-  <button class="reset-link" id="resetBtn">reset</button>
 </div>
 
 <div class="modal-overlay" id="historyModal">
@@ -1145,6 +1176,7 @@ let spinning = false;
 let spinCount = 0;
 let lastRollScore = 0;
 let bestScore = 0;
+let bestWord = '';
 let recent = [];
 let fullHistory = [];
 const earnedBadges = new Set();
@@ -1153,12 +1185,11 @@ const gameCardEl = document.querySelector('.game-card');
 const tilesEl = document.getElementById('tiles');
 const rollBtn = document.getElementById('rollBtn');
 const totalScoreEl = document.getElementById('lastRollScore');
-const spinCountEl = document.getElementById('spinCount');
 const bestScoreEl = document.getElementById('bestScore');
 const badgeListEl = document.getElementById('badgeList');
 const breakdownSubEl = document.getElementById('breakdownSub');
 const recentEl = document.getElementById('recent');
-const resetBtn = document.getElementById('resetBtn');
+const bestWordTilesEl = document.getElementById('bestWordTiles');
 
 const tileRefs = [];
 for(let i=0;i<5;i++){
@@ -1170,6 +1201,23 @@ for(let i=0;i<5;i++){
 }
 
 function randLetter(){ return ALPHABET[Math.floor(Math.random()*26)]; }
+
+/* renders a word as a row of small bordered letter tiles */
+function wordTilesHTML(word){
+  if(!word) return '';
+  return `<div class="word-tiles">${word.split('').map(l => `<div class="word-tile">${l}</div>`).join('')}</div>`;
+}
+
+/* keeps the word-tile row inside the all-time best score box in sync */
+function updateBestWordDisplay(){
+  if(bestWord){
+    bestWordTilesEl.style.display = 'flex';
+    bestWordTilesEl.innerHTML = bestWord.split('').map(l => `<div class="word-tile">${l}</div>`).join('');
+  } else {
+    bestWordTilesEl.style.display = 'none';
+    bestWordTilesEl.innerHTML = '';
+  }
+}
 
 /* ================= combo engine ================= */
 function tilesHTML(word, hit, revealedCount){
@@ -1640,10 +1688,13 @@ function commitRollResult(word, matches, total){
   lastRollScore = total;
   const isNewHighscore = total > bestScore;
   bestScore = Math.max(bestScore, total);
+  if(isNewHighscore){
+    bestWord = word;
+    updateBestWordDisplay();
+  }
 
   runningScore = total;
   totalScoreEl.textContent = total;
-  spinCountEl.textContent = spinCount;
   bestScoreEl.textContent = bestScore;
 
   breakdownSubEl.textContent = `${word} · ${matches.length} badge${matches.length===1?'':'s'} · +${total} pts`;
@@ -1673,26 +1724,6 @@ function commitRollResult(word, matches, total){
 function finishRoll(word){
   const { matches, total } = evaluate(word);
   scheduleQuickRollBadgeReveals(matches, word, total);
-}
-
-function resetGame(){
-  spinCount = 0; lastRollScore = 0; bestScore = 0; recent = [];
-  fullHistory = []; earnedBadges.clear();
-  stageIntervals.forEach(iv => clearInterval(iv));
-  clearPendingReveals();
-  rollStage = 0; stageLetters = []; stageIntervals = [];
-  currentMatches = []; currentTotal = 0; shownBadgeIdxs = new Set();
-  spinning = false;
-  updateToggleLockState();
-  resetTilesVisual();
-  resetRunningScore();
-  spinCountEl.textContent = 0;
-  bestScoreEl.textContent = 0;
-  breakdownSubEl.textContent = 'Roll to see what you earn';
-  badgeListEl.innerHTML = '';
-  recentEl.innerHTML = '';
-  renderHistoryModal();
-  renderAlmanacModal();
 }
 
 /* ================= almanac (static reference list of every badge type) ================= */
@@ -1837,15 +1868,17 @@ async function handleSession(session){
        fresh-page defaults of 0 rolls / 0 best score */
     spinCount = currentProfile.total_rolls ?? 0;
     bestScore = currentProfile.best_score ?? 0;
-    spinCountEl.textContent = spinCount;
+    bestWord = currentProfile.best_word ?? '';
     bestScoreEl.textContent = bestScore;
+    updateBestWordDisplay();
   } else if(!currentUser){
     /* signed out: this device is now a guest again, so don't keep
        showing someone else's stats on screen */
     spinCount = 0;
     bestScore = 0;
-    spinCountEl.textContent = 0;
+    bestWord = '';
     bestScoreEl.textContent = 0;
+    updateBestWordDisplay();
   }
 
   updateAuthButton();
@@ -1965,9 +1998,9 @@ async function renderLeaderboardModal(){
       <div class="leaderboard-rank">#${i+1}</div>
       <div class="leaderboard-name-block">
         <div class="leaderboard-name ${currentUser && row.user_id===currentUser.id ? 'you':''}">${row.username ?? 'anonymous'}</div>
-        ${row.daily_best_word ? `<div class="leaderboard-word">${row.daily_best_word}</div>` : ''}
       </div>
       <div class="leaderboard-rolls">${row.daily_total_rolls ?? 0} rolls</div>
+      ${row.daily_best_word ? wordTilesHTML(row.daily_best_word) : ''}
       <div class="leaderboard-score">${row.daily_best_score ?? 0}</div>
     </div>
   `).join('');
@@ -1984,6 +2017,8 @@ async function logRollToLeaderboard(score, word){
     currentProfile.total_rolls = (currentProfile.total_rolls || 0) + 1;
     if(score > (currentProfile.best_score || 0)){
       currentProfile.best_word = word;
+      bestWord = word;
+      updateBestWordDisplay();
     }
     currentProfile.best_score = Math.max(currentProfile.best_score || 0, score);
   } catch(err){
@@ -1995,7 +2030,6 @@ authBtn.addEventListener('click', () => openModal('authModal'));
 openLeaderboardBtn.addEventListener('click', () => openModal('leaderboardModal'));
 
 rollBtn.addEventListener('click', roll);
-resetBtn.addEventListener('click', resetGame);
 </script>
 
 </body>
