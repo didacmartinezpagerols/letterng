@@ -271,6 +271,22 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   box-shadow: 0 0 0 2px var(--pink), 0 6px 14px var(--pink-glow);
 }
 
+/* ---------- per-letter badge flash ----------
+   Fires on the main tiles when a badge involving those letters lands.
+   Color comes from --flash-color (set per-rarity in JS, reusing the
+   same rarity color variables as the badge pills), duration comes from
+   --flash-duration (set in JS to match however fast badges are being
+   dealt right now). Animates the tile's outline, not the letter itself. */
+@keyframes letterFlash{
+  0%   { box-shadow: 0 2px 0 rgba(0,0,0,0.12) inset, 0 6px 14px rgba(0,0,0,0.25); }
+  30%  { box-shadow: 0 0 0 3px var(--flash-color, var(--pink)) inset, 0 0 18px var(--flash-color, var(--pink)); }
+  70%  { box-shadow: 0 0 0 3px var(--flash-color, var(--pink)) inset, 0 0 18px var(--flash-color, var(--pink)); }
+  100% { box-shadow: 0 2px 0 rgba(0,0,0,0.12) inset, 0 6px 14px rgba(0,0,0,0.25); }
+}
+.tile.letter-flash{
+  animation: letterFlash var(--flash-duration, 500ms) ease-in-out;
+}
+
 .card-footer{
   display:flex;
   align-items:flex-end;
@@ -1406,8 +1422,27 @@ function evaluate(word){
  for(let i=0;i<4;i++) if(V.has(letters[i])!==V.has(letters[i+1])) syll.push(1);
  if(syll.length) matches.push({name:'SYLLABLE',icon:'♪',rarity:'common',points:10*syll.length,desc:'Pronounceable transitions.',highlight:[0,1,2,3,4]});
 
- const vowels=letters.filter(l=>V.has(l)).length;
- if(vowels>=3) matches.push({name:'CHORUS',icon:'✦',rarity:'common',points:vowels===3?60:vowels===4?80:100,desc:'Vowel-rich roll.',highlight:[0,1,2,3,4]});
+ /* exact-vowel-count badges: probability of a 5-letter roll landing on
+    exactly k vowels (out of 26 letters, 5 are vowels) follows a binomial
+    distribution — P(k) = C(5,k) * (5/26)^k * (21/26)^(5-k). Only 1..5
+    vowels get a badge (0 vowels is the "no badge" baseline case, and is
+    actually the 2nd most common outcome at ≈34%, so it isn't rewarded).
+    Points scale up sharply as k climbs since the odds fall off a cliff:
+      1 vowel  ≈41.0%  (1 in 2.4)  -> common,   5 pts
+      2 vowels ≈19.5%  (1 in 5.1)  -> common,   15 pts
+      3 vowels ≈4.6%   (1 in 21.6) -> uncommon, 120 pts
+      4 vowels ≈0.55%  (1 in 181)  -> rare,      900 pts
+      5 vowels ≈0.026% (1 in 3802) -> rare,     8500 pts (same odds ballpark as QUARTET/LEXICON/FULL DNA, so it lands in the same rare-tier payout range) */
+ const vowelIdxs=[]; letters.forEach((l,i)=>{ if(V.has(l)) vowelIdxs.push(i); });
+ const VOWEL_BADGES = {
+   1:{name:'LONE VOWEL',  icon:'∘', rarity:'common',   points:5,    desc:'Exactly one vowel in the roll.'},
+   2:{name:'VOWEL PAIR',  icon:'∴', rarity:'common',   points:15,   desc:'Exactly two vowels in the roll.'},
+   3:{name:'CHORUS',      icon:'✦', rarity:'uncommon', points:120,  desc:'Exactly three vowels in the roll.'},
+   4:{name:'VOWEL SURGE', icon:'✷', rarity:'rare',     points:900,  desc:'Exactly four vowels in the roll.'},
+   5:{name:'ALL VOWELS',  icon:'✺', rarity:'rare',     points:8500, desc:'Every letter in the roll is a vowel.'}
+ };
+ const vb = VOWEL_BADGES[vowelIdxs.length];
+ if(vb) matches.push({name:vb.name,icon:vb.icon,rarity:vb.rarity,points:vb.points,desc:vb.desc,highlight:vowelIdxs,announce:vowelIdxs.length>=4});
 
  let hiIdx = 0;
  for(let i=1;i<5;i++){ if(tierOf(letters[i]) > tierOf(letters[hiIdx])) hiIdx = i; }
@@ -1441,7 +1476,7 @@ let currentTotal = 0;
 let shownBadgeIdxs = new Set();
 
 function resetTilesVisual(){
-  tileRefs.forEach(t => { t.textContent = ''; t.classList.remove('spinning','locked'); });
+  tileRefs.forEach(t => { t.textContent = ''; t.classList.remove('spinning','locked','letter-flash'); });
 }
 
 const darkModeToggle = document.getElementById('darkModeToggle');
@@ -1529,6 +1564,41 @@ function bumpRunningScore(points){
   totalScoreEl.classList.add('bump');
 }
 
+/* rarity -> the same CSS color variables the rarity pills already use,
+   so a "grey" (common) badge flashes grey, a "green" (uncommon) badge
+   flashes green, etc. */
+const RARITY_FLASH_COLOR = {
+  common: 'var(--common-text)',
+  uncommon: 'var(--uncommon-text)',
+  rare: 'var(--rare-text)',
+  legendary: 'var(--legendary-text)',
+  culture: 'var(--culture-text)'
+};
+
+/* how long the letter flash should run — tied to however fast badges
+   are currently being dealt, so Fast/Medium/Slow (and one-by-one) all
+   feel matched: quicker dealing -> quicker flash, slower dealing ->
+   a flash that lingers a bit longer. */
+function letterFlashDuration(){
+  return sequentialReveal ? 480 : Math.max(320, Math.min(quickRollGap, 1200));
+}
+
+/* flashes the tiles (the big letters, not the badge card's mini-tiles)
+   involved in a just-landed badge, hued to that badge's rarity color */
+function flashLetterTiles(m){
+  const duration = letterFlashDuration();
+  const color = RARITY_FLASH_COLOR[m.rarity] || RARITY_FLASH_COLOR.common;
+  (m.highlight || []).forEach(idx => {
+    const t = tileRefs[idx];
+    if(!t) return;
+    t.style.setProperty('--flash-color', color);
+    t.style.setProperty('--flash-duration', duration + 'ms');
+    t.classList.remove('letter-flash');
+    void t.offsetWidth; /* force reflow so back-to-back badges on the same letter re-trigger the animation */
+    t.classList.add('letter-flash');
+  });
+}
+
 function badgeCardHTML(m, word, revealedCount){
   return `
     <div class="badge-card ${m.rarity!=='common'?'r-'+m.rarity:''} ${m.announce?'announce':''}">
@@ -1565,6 +1635,7 @@ function appendBadgeCard(m, word, revealedCount){
   }
   requestAnimationFrame(() => card.classList.add('show'));
   bumpRunningScore(m.points);
+  flashLetterTiles(m);
 }
 
 /* schedules a small stagger between newly-eligible badges so they still
@@ -1654,6 +1725,7 @@ function roll(){
     const finalLetters = Array.from({length:5}, randLetter);
     const delays = [0,1,2,3,4].map(i => 500 + i * quickRollGap);
     tileRefs.forEach((t, i) => {
+      t.classList.remove('letter-flash');
       t.classList.add('spinning');
       const iv = setInterval(() => { t.textContent = randLetter(); }, 40);
       setTimeout(() => {
@@ -1753,7 +1825,11 @@ const ALMANAC = [
   {name:'NESTED', rarity:'common', desc:'A hidden 3-letter word inside the roll.', odds:'≈1 in 6'},
   {name:'SPARK', rarity:'common', desc:'A hidden 2-letter word inside the roll (from a short curated list).', odds:'uncommon — short list, ≈1%'},
   {name:'SYLLABLE', rarity:'common', desc:'Pronounceable vowel/consonant transitions.', odds:'very common'},
-  {name:'CHORUS', rarity:'common', desc:'Three or more of the five letters are vowels.', odds:'≈1 in 19'},
+  {name:'LONE VOWEL', rarity:'common', desc:'Exactly one of the five letters is a vowel.', odds:'≈1 in 2.4 (≈41%)'},
+  {name:'VOWEL PAIR', rarity:'common', desc:'Exactly two of the five letters are vowels.', odds:'≈1 in 5.1 (≈19.5%)'},
+  {name:'CHORUS', rarity:'uncommon', desc:'Exactly three of the five letters are vowels.', odds:'≈1 in 21.6 (≈4.6%)'},
+  {name:'VOWEL SURGE', rarity:'rare', desc:'Exactly four of the five letters are vowels.', odds:'≈1 in 181 (≈0.55%)'},
+  {name:'ALL VOWELS', rarity:'rare', desc:'All five letters are vowels.', odds:'≈1 in 3,802 (≈0.026%)'},
   {name:'PERIODIC ELEMENT', rarity:'common', desc:'A periodic table symbol (like Fe or O) hidden in the roll.', odds:'very common — small payout'},
   {name:'FULL DNA', rarity:'rare', desc:'A, C, T and G all present in the roll — a complete set of DNA nucleotides.', odds:'≈1 in 4,125'},
   {name:'FULL RNA', rarity:'rare', desc:'A, C, T and U all present in the roll — a complete set of RNA nucleotides.', odds:'≈1 in 4,125'},
