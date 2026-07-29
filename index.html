@@ -12,23 +12,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
 
 :root{
-  --bg: #fafafa;
-  --surface: #ffffff;
-  --card: #0c0c0f;
-  --ink: #15161a;
-  --muted: #8a8d94;
-  --border: #e8e8eb;
-  --pink: #ff3d7f;
-  --pink-light: #ffb3cd;
-  --pink-glow: rgba(255,61,127,0.25);
-  --secondary-text: #6b6d75;
-  --points-pill-bg: #f4f4f2;
-  --mini-tile-bg: #f1f1ee;
-  --mini-tile-color: #b6b4ab;
-  --switch-track-off: #dcdce0;
-  --mini-hit-bg: #15161a;
-  --mini-hit-text: #ffffff;
-  --word-tile-outline: #d8cfb8;
+  --bg: #FBEFF3;
+  --surface: #FEFAFC;
+  --card: #F4E1E9;
+  --ink: #6B3F52;
+  --muted: #B98AA0;
+  --border: #E3C6D3;
+  --pink: #C2447A;
+  --pink-light: #E38FB3;
+  --pink-glow: rgba(194,68,122,0.25);
+  --secondary-text: #8C5E71;
+  --points-pill-bg: #F6E3EC;
+  --mini-tile-bg: #F6E3EC;
+  --mini-tile-color: #D2A8BC;
+  --switch-track-off: #EDD3DE;
+  --mini-hit-bg: #6B3F52;
+  --mini-hit-text: #FCEFF5;
+  --word-tile-outline: #DCB4C6;
 
   --common-bg: #f1f2f4;  --common-text: #63666d;
   --uncommon-bg: #e1f6ea; --uncommon-text: #1f8a4c;
@@ -62,6 +62,21 @@ body.dark{
   --legendary-bg: #2a1030; --legendary-text: #e08eff;
   --culture-bg: #142544;  --culture-text: #7ea6ff;
 }
+
+/* the rules below were hardcoded literal colors (not theme variables)
+   because both themes originally used a near-black game-card, so one
+   fixed value worked for both. Light mode's card is now a pale pastel
+   pink, which needs its own text/tile colors — these overrides just
+   restore dark mode's exact original appearance so it stays untouched. */
+body.dark .switch-thumb{ background:#fff; }
+body.dark .roll-mode-thumb{ background: #fff; }
+body.dark .game-title{ color: #fff; }
+body.dark .game-sub{ color: #a3a5ad; }
+body.dark .tile{ background: #f2f1ee; color: #17181c; }
+body.dark .tile.spinning{ color: #b9b7ae; }
+body.dark .hint{ color: #6b6d75; }
+body.dark .roll-btn-inner{ color: #fff; }
+body.dark .auth-submit{ color: #fff; }
 
 *{ box-sizing: border-box; }
 
@@ -148,7 +163,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   width:14px;
   height:14px;
   border-radius:50%;
-  background:#fff;
+  background:#FEFAFC;
   box-shadow:0 1px 2px rgba(0,0,0,0.25);
   transition:transform 0.2s ease;
 }
@@ -202,7 +217,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   width:16px;
   height:16px;
   border-radius:50%;
-  background: #fff;
+  background: #FEFAFC;
   border: 1px solid rgba(0,0,0,0.08);
   box-shadow: 0 1px 3px rgba(0,0,0,0.3);
   transform: translateY(-50%);
@@ -231,13 +246,13 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   font-family:'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 2.6rem;
-  color: #fff;
+  color: #6B3F52;
   letter-spacing: -0.02em;
   margin: 0;
 }
 
 .game-sub{
-  color: #a3a5ad;
+  color: #8C5E71;
   font-size: 0.92rem;
   line-height: 1.5;
   margin-top: 10px;
@@ -253,7 +268,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 .tile{
   flex:1;
   aspect-ratio: 1;
-  background: #f2f1ee;
+  background: #FDF3F7;
   border-radius: 14px;
   display:flex;
   align-items:center;
@@ -261,12 +276,12 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   font-family:'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 1.9rem;
-  color: #17181c;
+  color: #6B3F52;
   position: relative;
   box-shadow: 0 2px 0 rgba(0,0,0,0.12) inset, 0 6px 14px rgba(0,0,0,0.25);
   transition: transform 0.12s ease;
 }
-.tile.spinning{ color: #b9b7ae; }
+.tile.spinning{ color: #D2A8BC; }
 .tile.locked{
   box-shadow: 0 0 0 2px var(--pink), 0 6px 14px var(--pink-glow);
 }
@@ -295,7 +310,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 
 .hint{
   font-size: 0.72rem;
-  color: #6b6d75;
+  color: #B98AA0;
   max-width: 190px;
   line-height: 1.5;
 }
@@ -327,7 +342,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   font-weight: 600;
   font-size: 0.68rem;
   letter-spacing: 0.08em;
-  color: #fff;
+  color: #6B3F52;
 }
 
 /* ---------- score plate ---------- */
@@ -398,6 +413,14 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 .best-score-plate .word-tiles{
   display:none;
   gap: 6px;
+}
+
+.percentile-plate{
+  margin-top: 16px;
+}
+.percentile-plate .plate-num{
+  font-size: 1.15rem;
+  text-transform: lowercase;
 }
 
 /* ---------- badge breakdown ---------- */
@@ -766,7 +789,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   font-family:'Space Grotesk', sans-serif;
   font-weight: 600;
   font-size: 0.85rem;
-  color: #fff;
+  color: #FCEFF5;
   background: var(--pink);
   border: none;
   border-radius: 10px;
@@ -954,6 +977,10 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   <div class="plate">
     <div class="plate-num" id="lastRollScore">0</div>
     <div class="plate-label">score</div>
+  </div>
+  <div class="plate percentile-plate" id="percentilePlate" style="display:none;">
+    <div class="plate-num" id="percentileText">—</div>
+    <div class="plate-label">this roll's percentile</div>
   </div>
   <div class="plate best-score-plate" id="bestScorePlate">
     <div class="plate-num" id="bestScore">0</div>
@@ -1202,6 +1229,8 @@ const tilesEl = document.getElementById('tiles');
 const rollBtn = document.getElementById('rollBtn');
 const totalScoreEl = document.getElementById('lastRollScore');
 const bestScoreEl = document.getElementById('bestScore');
+const percentilePlate = document.getElementById('percentilePlate');
+const percentileText = document.getElementById('percentileText');
 const badgeListEl = document.getElementById('badgeList');
 const breakdownSubEl = document.getElementById('breakdownSub');
 const recentEl = document.getElementById('recent');
@@ -1537,6 +1566,8 @@ function resetRunningScore(){
   scoreAnimId++;
   totalScoreEl.classList.remove('bump');
   totalScoreEl.textContent = 0;
+  percentilePlate.style.display = 'none';
+  percentileText.textContent = '—';
 }
 /* animates the score plate counting up rapidly from whatever is currently
    displayed to the new target, instead of snapping straight to it. Reads
@@ -1781,6 +1812,7 @@ function commitRollResult(word, matches, total){
   if(historyModal.classList.contains('open')) renderHistoryModal();
   if(almanacModal.classList.contains('open')) renderAlmanacModal();
   logRollToLeaderboard(total, word);
+  updatePercentileBox(total);
 
   if(isNewHighscore){
     gameCardEl.classList.remove('highscore-flash');
@@ -2080,6 +2112,51 @@ async function renderLeaderboardModal(){
       <div class="leaderboard-score">${row.daily_best_score ?? 0}</div>
     </div>
   `).join('');
+}
+
+/* fire-and-forget: figures out where this specific roll's score would
+   hypothetically land among today's leaderboard, and shows it in the
+   percentile box under the score plate. This always reflects the word
+   just rolled, never the player's saved best score — so a bad roll
+   still gets its own (lower) percentile shown, even if the player is
+   already sitting at #1 on the actual leaderboard. */
+async function updatePercentileBox(score){
+  try{
+    const { data, error } = await sbClient.rpc('get_daily_leaderboard', { p_limit: 100000 });
+    if(error || !data || !data.length){
+      percentilePlate.style.display = 'none';
+      return;
+    }
+    /* drop the current player's own leaderboard row (if any) so this
+       hypothetical roll's score stands in for it, rather than being
+       counted alongside it */
+    const otherScores = data
+      .filter(row => !(currentUser && row.user_id === currentUser.id))
+      .map(row => row.daily_best_score ?? 0);
+
+    const scores = otherScores.concat([score]);
+    const total = scores.length;
+    if(total < 2){
+      percentilePlate.style.display = 'none';
+      return;
+    }
+    const rank = scores.filter(s => s > score).length + 1; /* 1 = best */
+
+    let label;
+    if(rank <= total / 2){
+      const pct = Math.max(1, Math.round((rank / total) * 100));
+      label = `top ${pct} percentile`;
+    } else {
+      const belowCount = total - rank;
+      const pct = Math.max(1, Math.round((belowCount / total) * 100));
+      label = `bottom ${pct} percentile`;
+    }
+    percentileText.textContent = label;
+    percentilePlate.style.display = '';
+  } catch(err){
+    console.error('updatePercentileBox failed', err);
+    percentilePlate.style.display = 'none';
+  }
 }
 
 /* fire-and-forget: logs the completed roll's score to Supabase via the
