@@ -1048,6 +1048,37 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ================= word lists ================= */
+/* ================= state ================= */
+let spinning = false;
+let spinCount = 0;
+let lastRollScore = 0;
+let bestScore = 0;
+let bestWord = '';
+let recent = [];
+let fullHistory = [];
+const earnedBadges = new Set();
+
+const gameCardEl = document.querySelector('.game-card');
+const tilesEl = document.getElementById('tiles');
+const rollBtn = document.getElementById('rollBtn');
+const totalScoreEl = document.getElementById('lastRollScore');
+const bestScoreEl = document.getElementById('bestScore');
+const percentilePlate = document.getElementById('percentilePlate');
+const percentileText = document.getElementById('percentileText');
+const badgeListEl = document.getElementById('badgeList');
+const breakdownSubEl = document.getElementById('breakdownSub');
+const recentEl = document.getElementById('recent');
+const bestWordTilesEl = document.getElementById('bestWordTiles');
+
+const tileRefs = [];
+for(let i=0;i<5;i++){
+  const t = document.createElement('div');
+  t.className = 'tile';
+  t.textContent = '';
+  tilesEl.appendChild(t);
+  tileRefs.push(t);
+}
+
 /* ================= letter tiles: cosmetic flicker only =================
    The real roll (letters + scoring) now happens server-side, in the
    "roll" Supabase Edge Function -- see supabase/functions/roll/index.ts.
@@ -1056,6 +1087,31 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
    locks them in. They have no bearing on the actual outcome. */
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 function randLetter(){ return ALPHABET[Math.floor(Math.random()*26)]; }
+
+/* renders a word as a row of small bordered letter tiles */
+function wordTilesHTML(word){
+  if(!word) return '';
+  return `<div class="word-tiles">${word.split('').map(l => `<div class="word-tile">${l}</div>`).join('')}</div>`;
+}
+
+/* keeps the word-tile row inside the all-time best score box in sync */
+function updateBestWordDisplay(){
+  if(bestWord){
+    bestWordTilesEl.style.display = 'flex';
+    bestWordTilesEl.innerHTML = bestWord.split('').map(l => `<div class="word-tile">${l}</div>`).join('');
+  } else {
+    bestWordTilesEl.style.display = 'none';
+    bestWordTilesEl.innerHTML = '';
+  }
+}
+
+/* used by badge-card rendering (badgeCardHTML) to draw the small
+   per-badge letter-tile row, independent of scoring */
+function tilesHTML(word, hit, revealedCount){
+  const rc = revealedCount === undefined ? word.length : revealedCount;
+  const hitSet = new Set(hit || []);
+  return word.split('').map((l,i) => `<div class="mini-tile ${hitSet.has(i)?'hit':''}">${i < rc ? l : ''}</div>`).join('');
+}
 
 
 /* ================= roll flow ================= */
