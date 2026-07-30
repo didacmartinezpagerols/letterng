@@ -1381,7 +1381,7 @@ async function roll(){
         rollFailed(err, stageIntervals);
         return;
       }
-      stageLetters = pendingRollResult.letters;
+      stageLetters = pendingRollResult.letters.split('');
       currentMatches = pendingRollResult.matches;
       currentTotal = pendingRollResult.total;
     }
@@ -1428,7 +1428,7 @@ async function roll(){
       setTimeout(() => {
         clearInterval(flickerIvs[i]);
         lockTile(t, result.letters[i]);
-        if(i === 4) finishRoll(result.letters.join(''), result.matches, result.total, result.saved);
+        if(i === 4) finishRoll(result.letters, result.matches, result.total, result.saved);
       }, delays[i]);
     });
   }
