@@ -1396,7 +1396,7 @@ function rollFailed(err, clearIntervals){
 
 async function roll(){
   if(spinning) return;
-  if(currentCredits !== null && currentCredits <= 0){
+  if(currentCredits !== null && currentCredits !== UNLIMITED_CREDITS && currentCredits <= 0){
     breakdownSubEl.textContent = "Out of credits — come back tomorrow for 2 more.";
     return;
   }
@@ -1730,10 +1730,19 @@ function updateAuthButton(){
   }
 }
 
+const UNLIMITED_CREDITS = -1; // sentinel from get_credits()/spend_credit() for flagged test accounts
+
 function renderCredits(){
   if(currentCredits === null){
     creditsCountEl.textContent = '–';
     creditsDisplayEl.classList.remove('out-of-credits');
+    if(rollHintEl) rollHintEl.innerHTML = 'Each roll uses <b>1 credit</b>.';
+    return;
+  }
+  if(currentCredits === UNLIMITED_CREDITS){
+    creditsCountEl.textContent = '∞';
+    creditsDisplayEl.classList.remove('out-of-credits');
+    if(rollHintEl) rollHintEl.innerHTML = 'Unlimited credits.';
     return;
   }
   creditsCountEl.textContent = currentCredits;
