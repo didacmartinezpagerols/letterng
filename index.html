@@ -121,21 +121,30 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 }
 .wordmark span{ color: var(--pink); }
 .credits-display{
-  display:flex;
+  display:inline-flex;
   align-items:center;
-  gap: 4px;
+  gap: 5px;
   font-family:'Space Grotesk', sans-serif;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--points-pill-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 10px;
+  cursor: pointer;
+  width: fit-content;
+  letter-spacing: 0.03em;
+  transition: border-color 0.2s ease;
 }
-.credits-display .credits-icon{ color: var(--pink); font-size: 0.65rem; }
+.credits-display:hover{ border-color: var(--pink); }
 .credits-display .credits-word{
-  font-weight: 500;
+  font-weight: 700;
   text-transform: uppercase;
   font-size: 0.6rem;
   letter-spacing: 0.05em;
 }
+.credits-display.out-of-credits{ border-color: var(--pink); }
 .credits-display.out-of-credits #creditsCount{ color: var(--pink); }
 .tag{
   font-size: 0.68rem;
@@ -784,6 +793,29 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 .almanac-status.yes{ background: var(--uncommon-bg); color: var(--uncommon-text); }
 .almanac-status.no{ background: var(--common-bg); color: var(--muted); }
 
+.credit-pack-entry{ align-items:center; }
+.credit-pack-price{
+  font-family:'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.credit-buy-btn{
+  width: auto !important;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 8px 18px;
+  font-size: 0.76rem;
+}
+.credits-modal-note{
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align:center;
+  margin-top: 4px;
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+
 /* ---------- auth ---------- */
 .auth-field{
   display:flex;
@@ -964,9 +996,9 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 <div class="topbar">
   <div class="wordmark-col">
     <div class="wordmark">lette<span>rng</span></div>
-    <div class="credits-display" id="creditsDisplay" title="Credits refill by 2 every day">
-      <span class="credits-icon">◆</span> <span id="creditsCount">–</span> <span class="credits-word">credits</span>
-    </div>
+    <button type="button" class="credits-display" id="creditsDisplay" title="Click to get more credits">
+      <span class="credits-word">credits:</span> <span id="creditsCount">–</span>
+    </button>
   </div>
   <div class="topbar-right">
     <div class="roll-mode-switch" id="rollModeSwitch" title="Click to cycle: Fast → Medium → Slow → One by one">
@@ -1072,6 +1104,16 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
       <button class="modal-close" data-close="leaderboardModal">✕</button>
     </div>
     <div class="modal-body" id="leaderboardBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="creditsModal">
+  <div class="modal-panel">
+    <div class="modal-head">
+      <div class="modal-title">Get credits</div>
+      <button class="modal-close" data-close="creditsModal">✕</button>
+    </div>
+    <div class="modal-body" id="creditsBody"></div>
   </div>
 </div>
 
@@ -1643,6 +1685,7 @@ function openModal(id){
   if(id === 'almanacModal') renderAlmanacModal();
   if(id === 'authModal') renderAuthModal();
   if(id === 'leaderboardModal') renderLeaderboardModal();
+  if(id === 'creditsModal') renderCreditsModal();
   document.getElementById(id).classList.add('open');
 }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
@@ -1985,8 +2028,75 @@ async function updatePercentileBox(score){
 
 authBtn.addEventListener('click', () => openModal('authModal'));
 openLeaderboardBtn.addEventListener('click', () => openModal('leaderboardModal'));
+creditsDisplayEl.addEventListener('click', () => openModal('creditsModal'));
 
 rollBtn.addEventListener('click', roll);
+
+/* ================= credit packs / payments ================= */
+const creditsBody = document.getElementById('creditsBody');
+
+/* pack ids here must match the CREDIT_PACKS keys in the
+   create-checkout-session edge function exactly — the server, not
+   this list, is what actually decides price and credits granted. */
+const CREDIT_PACKS_UI = [
+  { id: 'small',  credits: 50,  price: '€2'  },
+  { id: 'medium', credits: 150, price: '€5'  },
+  { id: 'large',  credits: 350, price: '€10' },
+];
+
+function renderCreditsModal(){
+  creditsBody.innerHTML = `
+    <div class="credits-modal-note">Credits refill by 2 every day. Buy more any time to keep rolling.</div>
+    ${CREDIT_PACKS_UI.map(p => `
+      <div class="almanac-entry credit-pack-entry">
+        <div class="almanac-left">
+          <div class="almanac-name-row">
+            <span class="almanac-name">${p.credits} credits</span>
+          </div>
+          <div class="credit-pack-price">${p.price} one-time</div>
+        </div>
+        <button type="button" class="auth-submit credit-buy-btn" data-pack="${p.id}">Buy</button>
+      </div>
+    `).join('')}
+  `;
+  creditsBody.querySelectorAll('.credit-buy-btn').forEach(btn => {
+    btn.addEventListener('click', () => buyCredits(btn.dataset.pack, btn));
+  });
+}
+
+async function buyCredits(pack, btn){
+  if(!isRealAccount()){
+    closeModal('creditsModal');
+    openModal('authModal');
+    return;
+  }
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+  try{
+    const { data: { session } } = await sbClient.auth.getSession();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/create-checkout-session`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ pack }),
+    });
+    const result = await res.json();
+    if(result.url){
+      window.location = result.url;
+    } else {
+      console.error('create-checkout-session error', result.error);
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  } catch(err){
+    console.error('buyCredits failed', err);
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
 </script>
 
 </body>
