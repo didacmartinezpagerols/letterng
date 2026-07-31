@@ -8,6 +8,7 @@
   window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
+<script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
 
@@ -107,6 +108,11 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   justify-content:space-between;
   margin-bottom: 34px;
 }
+.wordmark-col{
+  display:flex;
+  flex-direction:column;
+  gap: 3px;
+}
 .wordmark{
   font-family:'Space Grotesk', sans-serif;
   font-weight: 700;
@@ -114,6 +120,23 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   letter-spacing: -0.01em;
 }
 .wordmark span{ color: var(--pink); }
+.credits-display{
+  display:flex;
+  align-items:center;
+  gap: 4px;
+  font-family:'Space Grotesk', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.credits-display .credits-icon{ color: var(--pink); font-size: 0.65rem; }
+.credits-display .credits-word{
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+}
+.credits-display.out-of-credits #creditsCount{ color: var(--pink); }
 .tag{
   font-size: 0.68rem;
   color: var(--muted);
@@ -936,8 +959,15 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 </head>
 <body>
 
+<div id="hcaptchaContainer" style="display:none"></div>
+
 <div class="topbar">
-  <div class="wordmark">lette<span>rng</span></div>
+  <div class="wordmark-col">
+    <div class="wordmark">lette<span>rng</span></div>
+    <div class="credits-display" id="creditsDisplay" title="Credits refill by 2 every day">
+      <span class="credits-icon">◆</span> <span id="creditsCount">–</span> <span class="credits-word">credits</span>
+    </div>
+  </div>
   <div class="topbar-right">
     <div class="roll-mode-switch" id="rollModeSwitch" title="Click to cycle: Fast → Medium → Slow → One by one">
       <span class="roll-mode-label" id="rollModeLabel">Fast</span>
@@ -966,7 +996,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   <div class="tiles" id="tiles"></div>
 
   <div class="card-footer">
-    <div class="hint">Real words, poker patterns, hidden words, syllables and more all score at once.</div>
+    <div class="hint" id="rollHint">Each roll uses <b>1 credit</b>.</div>
     <button class="roll-btn" id="rollBtn">
       <div class="roll-btn-inner">ROLL</div>
     </button>
@@ -1069,6 +1099,9 @@ const badgeListEl = document.getElementById('badgeList');
 const breakdownSubEl = document.getElementById('breakdownSub');
 const recentEl = document.getElementById('recent');
 const bestWordTilesEl = document.getElementById('bestWordTiles');
+const creditsDisplayEl = document.getElementById('creditsDisplay');
+const creditsCountEl = document.getElementById('creditsCount');
+const rollHintEl = document.getElementById('rollHint');
 
 const tileRefs = [];
 for(let i=0;i<5;i++){
@@ -1338,16 +1371,24 @@ function revealEligibleBadges(revealedCount){
 async function fetchRollResult(){
   const { data, error } = await sbClient.functions.invoke('roll');
   if(error || !data || data.error){
-    throw new Error((data && data.error) || (error && error.message) || 'Roll failed.');
+    const err = new Error((data && data.error) || (error && error.message) || 'Roll failed.');
+    if(data && typeof data.credits === 'number') err.credits = data.credits;
+    throw err;
   }
-  return data; // { letters, matches, total, saved }
+  return data; // { letters, matches, total, saved, credits }
 }
 
 function rollFailed(err, clearIntervals){
   console.error('roll failed', err);
   (clearIntervals || []).forEach(clearInterval);
   tileRefs.forEach(t => t.classList.remove('spinning'));
-  breakdownSubEl.textContent = "Couldn't reach the server — try again.";
+  if(typeof err.credits === 'number'){
+    currentCredits = err.credits;
+    renderCredits();
+  }
+  breakdownSubEl.textContent = (err.credits === 0)
+    ? "Out of credits — come back tomorrow for 2 more."
+    : "Couldn't reach the server — try again.";
   spinning = false;
   rollBtn.disabled = false;
   updateToggleLockState();
@@ -1355,6 +1396,10 @@ function rollFailed(err, clearIntervals){
 
 async function roll(){
   if(spinning) return;
+  if(currentCredits !== null && currentCredits <= 0){
+    breakdownSubEl.textContent = "Out of credits — come back tomorrow for 2 more.";
+    return;
+  }
   spinning = true;
   rollBtn.disabled = true;
   updateToggleLockState();
@@ -1397,8 +1442,9 @@ async function roll(){
       if(rollStage === 5){
         const word = stageLetters.join('');
         const saved = pendingRollResult.saved;
+        const credits = pendingRollResult.credits;
         rollStage = 0;
-        const id = setTimeout(() => commitRollResult(word, currentMatches, currentTotal, saved), revealDelay);
+        const id = setTimeout(() => commitRollResult(word, currentMatches, currentTotal, saved, credits), revealDelay);
         pendingRevealTimers.push(id);
       }
       updateToggleLockState();
@@ -1428,7 +1474,7 @@ async function roll(){
       setTimeout(() => {
         clearInterval(flickerIvs[i]);
         lockTile(t, result.letters[i]);
-        if(i === 4) finishRoll(result.letters, result.matches, result.total, result.saved);
+        if(i === 4) finishRoll(result.letters, result.matches, result.total, result.saved, result.credits);
       }, delays[i]);
     });
   }
@@ -1437,7 +1483,7 @@ async function roll(){
 /* quick roll: badges land smallest-to-largest, one every quickRollGap
    ms — the same pacing the speed slider already controls for tiles —
    so the score-bump animation has time to actually be seen. */
-function scheduleQuickRollBadgeReveals(matches, word, total, saved){
+function scheduleQuickRollBadgeReveals(matches, word, total, saved, credits){
   const ordered = matches.slice().sort((a,b) => a.points - b.points);
   let delay = 150;
   ordered.forEach(m => {
@@ -1445,14 +1491,18 @@ function scheduleQuickRollBadgeReveals(matches, word, total, saved){
     pendingRevealTimers.push(id);
     delay += quickRollGap;
   });
-  const finalId = setTimeout(() => commitRollResult(word, matches, total, saved), delay);
+  const finalId = setTimeout(() => commitRollResult(word, matches, total, saved, credits), delay);
   pendingRevealTimers.push(finalId);
 }
 
 /* shared tail of a roll: stats, history, highscore flash. By the time
    this runs the score plate has already been bumped up badge by badge,
    so this just makes sure it lands exactly on the true total. */
-function commitRollResult(word, matches, total, saved){
+function commitRollResult(word, matches, total, saved, credits){
+  if(typeof credits === 'number'){
+    currentCredits = credits;
+    renderCredits();
+  }
   spinCount++;
   lastRollScore = total;
   const isNewHighscore = total > bestScore;
@@ -1500,8 +1550,8 @@ function commitRollResult(word, matches, total, saved){
   updateToggleLockState();
 }
 
-function finishRoll(word, matches, total, saved){
-  scheduleQuickRollBadgeReveals(matches, word, total, saved);
+function finishRoll(word, matches, total, saved, credits){
+  scheduleQuickRollBadgeReveals(matches, word, total, saved, credits);
 }
 
 /* ================= almanac (static reference list of every badge type) ================= */
@@ -1611,6 +1661,47 @@ const SUPABASE_URL = 'https://gbtsgtumwvpjsmisumlj.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_ONhHEyvSj1bvo6Azhpv7ew_zuaknn40';
 const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+/* Site key is public and safe to ship in client code — it just tells
+   hCaptcha which site is asking. The matching SECRET key is never put
+   here; it belongs only in the Supabase Dashboard (Authentication ->
+   Attack Protection -> Enable CAPTCHA protection), which is what
+   actually verifies the token server-side. */
+const HCAPTCHA_SITE_KEY = '5188afba-3cf0-4d0e-86d2-0124e2f227ac';
+let hcaptchaWidgetId = null;
+
+function waitForHCaptcha(){
+  return new Promise((resolve) => {
+    if(window.hcaptcha){ resolve(); return; }
+    const iv = setInterval(() => {
+      if(window.hcaptcha){ clearInterval(iv); resolve(); }
+    }, 50);
+  });
+}
+
+/* Gets a fresh invisible-hCaptcha token to attach to an auth call
+   (anonymous sign-in, magic-link sign-in). Renders the widget once,
+   then resets + re-executes it on every subsequent call since a token
+   is single-use. Falls back to no token (letting Supabase's own error
+   response surface) if hCaptcha fails to load at all. */
+async function getCaptchaToken(){
+  try{
+    await waitForHCaptcha();
+    if(hcaptchaWidgetId === null){
+      hcaptchaWidgetId = window.hcaptcha.render('hcaptchaContainer', {
+        sitekey: HCAPTCHA_SITE_KEY,
+        size: 'invisible',
+      });
+    } else {
+      window.hcaptcha.reset(hcaptchaWidgetId);
+    }
+    const { response } = await window.hcaptcha.execute(hcaptchaWidgetId, { async: true });
+    return response;
+  } catch(err){
+    console.error('hCaptcha token fetch failed', err);
+    return undefined;
+  }
+}
+
 const authBtn = document.getElementById('authBtn');
 const authModal = document.getElementById('authModal');
 const authBody = document.getElementById('authBody');
@@ -1620,15 +1711,46 @@ const openLeaderboardBtn = document.getElementById('openLeaderboardBtn');
 
 let currentUser = null;
 let currentProfile = null; // { id, user_id, username, best_score, best_word, total_rolls }
+let currentCredits = null;
+
+// Anonymous guest sessions exist purely so credits can be tracked
+// server-side without forcing an account — they shouldn't be treated
+// as a "real" signed-in account anywhere in the UI.
+function isRealAccount(){
+  return !!currentUser && !currentUser.is_anonymous;
+}
 
 function updateAuthButton(){
-  if(currentUser && currentProfile && currentProfile.username){
+  if(isRealAccount() && currentProfile && currentProfile.username){
     authBtn.textContent = currentProfile.username;
-  } else if(currentUser){
+  } else if(isRealAccount()){
     authBtn.textContent = 'set username';
   } else {
     authBtn.textContent = 'sign in';
   }
+}
+
+function renderCredits(){
+  if(currentCredits === null){
+    creditsCountEl.textContent = '–';
+    creditsDisplayEl.classList.remove('out-of-credits');
+    return;
+  }
+  creditsCountEl.textContent = currentCredits;
+  creditsDisplayEl.classList.toggle('out-of-credits', currentCredits <= 0);
+  if(rollHintEl){
+    rollHintEl.innerHTML = currentCredits <= 0
+      ? 'Out of credits — back tomorrow.'
+      : 'Each roll uses <b>1 credit</b>.';
+  }
+}
+
+async function syncCredits(){
+  if(!currentUser){ currentCredits = null; renderCredits(); return; }
+  const { data, error } = await sbClient.rpc('get_credits', { p_user_id: currentUser.id });
+  if(error){ console.error('get_credits error', error); return; }
+  currentCredits = data;
+  renderCredits();
 }
 
 async function fetchProfile(userId){
@@ -1664,12 +1786,30 @@ async function handleSession(session){
   }
 
   updateAuthButton();
+  await syncCredits();
   if(authModal.classList.contains('open')) renderAuthModal();
 }
 
 async function initAuth(){
   const { data: { session } } = await sbClient.auth.getSession();
-  await handleSession(session);
+  let activeSession = session;
+  if(!activeSession){
+    /* No session at all (first-ever visit, or storage was cleared) —
+       sign in anonymously so this device has a stable identity to
+       track credits against, without requiring an account. Real
+       sign-in (magic link) later replaces this session with a proper
+       one; see renderAuthModal(). */
+    const captchaToken = await getCaptchaToken();
+    const { data, error } = await sbClient.auth.signInAnonymously({
+      options: { captchaToken },
+    });
+    if(error){
+      console.error('anonymous sign-in failed', error);
+    } else {
+      activeSession = data.session;
+    }
+  }
+  await handleSession(activeSession);
   sbClient.auth.onAuthStateChange((_event, newSession) => { handleSession(newSession); });
   /* clean up the magic-link tokens from the URL once Supabase has read them */
   if(window.location.hash.includes('access_token')){
@@ -1679,7 +1819,7 @@ async function initAuth(){
 initAuth();
 
 function renderAuthModal(){
-  if(currentUser && currentProfile && currentProfile.username){
+  if(isRealAccount() && currentProfile && currentProfile.username){
     authModalTitle.textContent = 'Account';
     authBody.innerHTML = `
       <div class="auth-profile">
@@ -1696,7 +1836,7 @@ function renderAuthModal(){
       await sbClient.auth.signOut();
       closeModal('authModal');
     });
-  } else if(currentUser){
+  } else if(isRealAccount()){
     authModalTitle.textContent = 'Choose a username';
     authBody.innerHTML = `
       <div class="auth-field">
@@ -1716,7 +1856,7 @@ function renderAuthModal(){
       statusEl.textContent = 'Saving…';
       const { data, error } = await sbClient
         .from('Profiles')
-        .insert({ user_id: currentUser.id, username })
+        .upsert({ user_id: currentUser.id, username }, { onConflict: 'user_id' })
         .select()
         .single();
       btn.disabled = false;
@@ -1749,9 +1889,10 @@ function renderAuthModal(){
       btn.disabled = true;
       statusEl.classList.remove('error');
       statusEl.textContent = 'Sending…';
+      const captchaToken = await getCaptchaToken();
       const { error } = await sbClient.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: window.location.href }
+        options: { emailRedirectTo: window.location.href, captchaToken }
       });
       btn.disabled = false;
       if(error){
