@@ -1906,8 +1906,18 @@ function isRealAccount(){
   return !!currentUser && !currentUser.is_anonymous;
 }
 
+/* Anonymous guest sessions get a Profiles row auto-created (server-side)
+   with a "guest..." placeholder username so credits can be tracked even
+   before sign-in. When that session later links to a real account via
+   magic link, currentProfile.username is already non-empty — so without
+   this check the app would treat the placeholder as a real, chosen
+   username and skip straight past the "choose a username" step. */
+function isGuestUsername(u){
+  return !!u && /^guest[_-]?\w*$/i.test(u);
+}
+
 function updateAuthButton(){
-  if(isRealAccount() && currentProfile && currentProfile.username){
+  if(isRealAccount() && currentProfile && currentProfile.username && !isGuestUsername(currentProfile.username)){
     authBtn.textContent = currentProfile.username;
   } else if(isRealAccount()){
     authBtn.textContent = 'set username';
@@ -1961,6 +1971,7 @@ async function fetchProfile(userId){
 async function handleSession(session){
   currentUser = session ? session.user : null;
   currentProfile = currentUser ? await fetchProfile(currentUser.id) : null;
+  authEditingUsername = false;
 
   if(currentProfile){
     /* pick up where this account left off, instead of showing the
@@ -2018,7 +2029,7 @@ async function initAuth(){
      doesn't have a username yet, pop the auth modal open straight
      away so they're prompted to set one, instead of making them find
      the "set username" button themselves. */
-  if(cameFromMagicLink && isRealAccount() && (!currentProfile || !currentProfile.username)){
+  if(cameFromMagicLink && isRealAccount() && (!currentProfile || !currentProfile.username || isGuestUsername(currentProfile.username))){
     openModal('authModal');
   }
 
@@ -2029,8 +2040,15 @@ async function initAuth(){
 }
 initAuth();
 
+// true while the "change username" form is open from within the Account
+// view — reset on sign-out / modal close so it doesn't leak into the
+// next time the modal opens.
+let authEditingUsername = false;
+
 function renderAuthModal(){
-  if(isRealAccount() && currentProfile && currentProfile.username){
+  const hasRealUsername = currentProfile && currentProfile.username && !isGuestUsername(currentProfile.username);
+
+  if(isRealAccount() && hasRealUsername && !authEditingUsername){
     authModalTitle.textContent = 'Account';
     authBody.innerHTML = `
       <div class="auth-profile">
@@ -2040,24 +2058,41 @@ function renderAuthModal(){
           <div class="stat"><b>${currentProfile.total_rolls ?? 0}</b><span>rolls logged</span></div>
         </div>
         ${currentProfile.best_word ? `<div class="auth-profile-word">best word: <b>${currentProfile.best_word}</b></div>` : ''}
+        <button class="reset-link" id="changeUsernameBtn">Change username</button>
         <button class="auth-signout" id="signOutBtn">Sign out</button>
       </div>
     `;
+    document.getElementById('changeUsernameBtn').addEventListener('click', () => {
+      authEditingUsername = true;
+      renderAuthModal();
+    });
     document.getElementById('signOutBtn').addEventListener('click', async () => {
+      authEditingUsername = false;
       await sbClient.auth.signOut();
       closeModal('authModal');
     });
   } else if(isRealAccount()){
-    authModalTitle.textContent = 'Choose a username';
+    /* Covers three cases, none of which should ever show best-score /
+       roll-count stats: a brand new account with no username yet, an
+       account that still only has the auto-assigned "guest..." placeholder,
+       and an existing real username the person tapped "Change username" on. */
+    authModalTitle.textContent = hasRealUsername ? 'Change username' : 'Choose a username';
     authBody.innerHTML = `
       <div class="auth-field">
         <label>Username</label>
-        <input type="text" class="auth-input" id="usernameInput" maxlength="24" placeholder="e.g. wordwizard">
+        <input type="text" class="auth-input" id="usernameInput" maxlength="24" placeholder="e.g. wordwizard" value="${hasRealUsername ? currentProfile.username : ''}">
       </div>
       <button class="auth-submit" id="usernameSubmit">Save username</button>
+      ${hasRealUsername ? `<button class="reset-link" id="cancelUsernameBtn">Cancel</button>` : ''}
       <div class="auth-status" id="authStatus"></div>
     `;
     const statusEl = document.getElementById('authStatus');
+    if(hasRealUsername){
+      document.getElementById('cancelUsernameBtn').addEventListener('click', () => {
+        authEditingUsername = false;
+        renderAuthModal();
+      });
+    }
     document.getElementById('usernameSubmit').addEventListener('click', async () => {
       const btn = document.getElementById('usernameSubmit');
       const username = document.getElementById('usernameInput').value.trim();
@@ -2079,6 +2114,7 @@ function renderAuthModal(){
         return;
       }
       currentProfile = data;
+      authEditingUsername = false;
       updateAuthButton();
       renderAuthModal();
     });
