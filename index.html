@@ -930,11 +930,21 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 .leaderboard-name-block{
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 .leaderboard-name{
   font-family:'Space Grotesk', sans-serif;
   font-weight: 600;
   font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  /* Excel-style truncation: rather than a hard clip, the last stretch
+     of the name fades to transparent so it visually yields to the
+     word tiles / score sitting right next to it instead of running
+     into them. Harmless no-op when the name is short enough to fit —
+     the fade just applies to empty space in that case. */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent 100%);
 }
 .leaderboard-name.you::after{
   content: 'you';
@@ -950,12 +960,6 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   font-family:'IBM Plex Mono', monospace;
   font-weight: 600;
   font-size: 0.88rem;
-}
-.leaderboard-rolls{
-  font-size: 0.68rem;
-  color: var(--muted);
-  min-width: 60px;
-  text-align: right;
 }
 
 /* ---------- highscore flash ---------- */
@@ -1843,6 +1847,13 @@ async function handleSession(session){
 }
 
 async function initAuth(){
+  /* Detect a magic-link redirect *before* anything touches the URL —
+     supabase-js parses/consumes the access_token hash on client
+     creation (detectSessionInUrl defaults to true), so by the time we
+     get here the session already reflects the sign-in, but the hash
+     itself is still present until we clean it up below. */
+  const cameFromMagicLink = window.location.hash.includes('access_token');
+
   const { data: { session } } = await sbClient.auth.getSession();
   let activeSession = session;
   if(!activeSession){
@@ -1863,6 +1874,15 @@ async function initAuth(){
   }
   await handleSession(activeSession);
   sbClient.auth.onAuthStateChange((_event, newSession) => { handleSession(newSession); });
+
+  /* Just landed back here from the magic-link email: if this account
+     doesn't have a username yet, pop the auth modal open straight
+     away so they're prompted to set one, instead of making them find
+     the "set username" button themselves. */
+  if(cameFromMagicLink && isRealAccount() && (!currentProfile || !currentProfile.username)){
+    openModal('authModal');
+  }
+
   /* clean up the magic-link tokens from the URL once Supabase has read them */
   if(window.location.hash.includes('access_token')){
     history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -1974,7 +1994,6 @@ async function renderLeaderboardModal(){
       <div class="leaderboard-name-block">
         <div class="leaderboard-name ${currentUser && row.user_id===currentUser.id ? 'you':''}">${row.username ?? 'anonymous'}</div>
       </div>
-      <div class="leaderboard-rolls">${row.daily_total_rolls ?? 0} rolls</div>
       ${row.daily_best_word ? wordTilesHTML(row.daily_best_word) : ''}
       <div class="leaderboard-score">${row.daily_best_score ?? 0}</div>
     </div>
