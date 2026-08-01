@@ -107,6 +107,13 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   align-items:center;
   justify-content:space-between;
   margin-bottom: 34px;
+  transition: opacity 0.4s ease;
+}
+/* while a roll is in flight / badges are being dealt, everything above
+   the game card fades out so the tiles are the only focal point */
+.topbar.rolling{
+  opacity: 0;
+  pointer-events: none;
 }
 .wordmark-col{
   display:flex;
@@ -272,6 +279,29 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   padding: 34px 30px 28px;
   position: relative;
   box-shadow: 0 30px 60px -20px rgba(0,0,0,0.35);
+  transition: padding 0.45s cubic-bezier(.65,0,.35,1), box-shadow 0.45s ease;
+}
+/* while rolling / dealing badges: the card shrinks down to hug just the
+   tiles, and the title/subtitle/footer inside it fade + collapse away
+   (see .collapse-block below) so the roll itself feels like the moment */
+.game-card.rolling{
+  padding: 22px 22px;
+  box-shadow: 0 20px 46px -18px var(--pink-glow);
+}
+
+/* accordion-style collapse: animating grid-template-rows lets a block
+   collapse to zero height smoothly without knowing its content height
+   up front. Each collapsible section needs an inner wrapper div. */
+.collapse-block{
+  display:grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.45s cubic-bezier(.65,0,.35,1), opacity 0.3s ease;
+  opacity: 1;
+}
+.collapse-block > div{ overflow:hidden; min-height:0; }
+.game-card.rolling .collapse-block{
+  grid-template-rows: 0fr;
+  opacity: 0;
 }
 
 .game-title{
@@ -295,7 +325,9 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   display:flex;
   gap: 10px;
   margin: 30px 0 26px;
+  transition: margin 0.45s cubic-bezier(.65,0,.35,1);
 }
+.game-card.rolling .tiles{ margin: 4px 0; }
 
 .tile{
   flex:1;
@@ -435,8 +467,26 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   text-transform: uppercase;
 }
 
-.best-score-plate{
+/* wrapper that lets the "all time best score" plate collapse away
+   while a roll is in flight — the plate itself keeps its layout,
+   the wrapper animates the space around it */
+.best-score-collapse{
+  display:grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.45s cubic-bezier(.65,0,.35,1), opacity 0.3s ease, margin-top 0.45s ease;
+  opacity: 1;
+  width:100%;
+  justify-items:center;
   margin-top: 16px;
+}
+.best-score-collapse > div{ overflow:hidden; min-height:0; }
+.scorepanel.rolling .best-score-collapse{
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin-top: 0;
+}
+
+.best-score-plate{
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -997,7 +1047,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 
 <div id="hcaptchaContainer" style="display:none"></div>
 
-<div class="topbar">
+<div class="topbar" id="topbar">
   <div class="wordmark-col">
     <div class="wordmark">lette<span>rng</span></div>
     <button type="button" class="credits-display" id="creditsDisplay" title="Click to get more credits">
@@ -1026,20 +1076,28 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 </div>
 
 <div class="game-card">
-  <h1 class="game-title">letterng</h1>
-  <p class="game-sub">Roll five letters. Chase words, patterns, and pure luck across every rule in the book.</p>
+  <div class="collapse-block" id="introBlock">
+    <div>
+      <h1 class="game-title">letterng</h1>
+      <p class="game-sub">Roll five letters. Chase words, patterns, and pure luck across every rule in the book.</p>
+    </div>
+  </div>
 
   <div class="tiles" id="tiles"></div>
 
-  <div class="card-footer">
-    <div class="hint" id="rollHint">Each roll uses <b>1 credit</b>.</div>
-    <button class="roll-btn" id="rollBtn">
-      <div class="roll-btn-inner">ROLL</div>
-    </button>
+  <div class="collapse-block" id="footerBlock">
+    <div>
+      <div class="card-footer">
+        <div class="hint" id="rollHint">Each roll uses <b>1 credit</b>.</div>
+        <button class="roll-btn" id="rollBtn">
+          <div class="roll-btn-inner">ROLL</div>
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="scorepanel">
+<div class="scorepanel" id="scorepanel">
   <div class="plate">
     <div class="plate-num" id="lastRollScore">0</div>
     <div class="plate-label">score</div>
@@ -1048,10 +1106,14 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
     <div class="plate-num" id="percentileText">—</div>
     <div class="plate-label">this roll's percentile</div>
   </div>
-  <div class="plate best-score-plate" id="bestScorePlate">
-    <div class="plate-num" id="bestScore">0</div>
-    <div class="word-tiles" id="bestWordTiles"></div>
-    <div class="plate-label">all time best score</div>
+  <div class="best-score-collapse" id="bestScoreCollapse">
+    <div>
+      <div class="plate best-score-plate" id="bestScorePlate">
+        <div class="plate-num" id="bestScore">0</div>
+        <div class="word-tiles" id="bestWordTiles"></div>
+        <div class="plate-label">all time best score</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1135,6 +1197,8 @@ let fullHistory = [];
 const earnedBadges = new Set();
 
 const gameCardEl = document.querySelector('.game-card');
+const topbarEl = document.getElementById('topbar');
+const scorepanelEl = document.getElementById('scorepanel');
 const tilesEl = document.getElementById('tiles');
 const rollBtn = document.getElementById('rollBtn');
 const totalScoreEl = document.getElementById('lastRollScore');
@@ -1296,9 +1360,20 @@ function animateScoreTo(target, duration){
   }
   requestAnimationFrame(step);
 }
+/* how long the score count-up animation should take — tied to roll
+   speed so it never outpaces how fast badges are actually landing.
+   Fast keeps the original snappy 380ms; Medium/Slow (and one-by-one)
+   stretch it out so the score doesn't finish counting and then sit
+   idle waiting for the next, slower badge. */
+function scoreAnimDuration(){
+  if(sequentialReveal) return 600;
+  if(rollMode === 'slow') return 900;
+  if(rollMode === 'medium') return 600;
+  return 380;
+}
 function bumpRunningScore(points){
   runningScore += points;
-  animateScoreTo(runningScore, 380);
+  animateScoreTo(runningScore, scoreAnimDuration());
   totalScoreEl.classList.remove('bump');
   void totalScoreEl.offsetWidth; /* force reflow so the animation restarts every time */
   totalScoreEl.classList.add('bump');
@@ -1424,10 +1499,26 @@ async function fetchRollResult(){
   return data; // { letters, matches, total, saved, credits }
 }
 
+/* the card-shrink / fade-everything-else effect below only applies to
+   quick-roll modes (fast/medium/slow). In "one by one" mode the roll
+   button has to stay reachable between each of the 5 clicks, so that
+   mode keeps the card at full size the whole time. */
+function enterRollFocus(){
+  gameCardEl.classList.add('rolling');
+  scorepanelEl.classList.add('rolling');
+  topbarEl.classList.add('rolling');
+}
+function exitRollFocus(){
+  gameCardEl.classList.remove('rolling');
+  scorepanelEl.classList.remove('rolling');
+  topbarEl.classList.remove('rolling');
+}
+
 function rollFailed(err, clearIntervals){
   console.error('roll failed', err);
   (clearIntervals || []).forEach(clearInterval);
   tileRefs.forEach(t => t.classList.remove('spinning'));
+  exitRollFocus();
   if(typeof err.credits === 'number'){
     currentCredits = err.credits;
     renderCredits();
@@ -1503,6 +1594,7 @@ async function roll(){
     resetRunningScore();
     badgeListEl.innerHTML = '';
     breakdownSubEl.textContent = 'Dealing…';
+    enterRollFocus();
     const flickerIvs = tileRefs.map(t => {
       t.classList.remove('letter-flash');
       t.classList.add('spinning');
@@ -1594,6 +1686,12 @@ function commitRollResult(word, matches, total, saved, credits){
   spinning = false;
   rollBtn.disabled = false;
   updateToggleLockState();
+
+  /* let the final score sit for a beat while still in the shrunk
+     state, then smoothly bring the card/topbar/best-score plate back
+     to normal. Safe to call even for sequential-reveal rolls, which
+     never entered the collapsed state to begin with. */
+  setTimeout(exitRollFocus, 500);
 }
 
 function finishRoll(word, matches, total, saved, credits){
