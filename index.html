@@ -283,7 +283,11 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 }
 /* while rolling / dealing badges: the card shrinks down to hug just the
    tiles, and the title/subtitle/footer inside it fade + collapse away
-   (see .collapse-block below) so the roll itself feels like the moment */
+   (see .collapse-block below) so the roll itself feels like the moment.
+   Applies to every roll mode, including "one by one" — in that mode the
+   tiles themselves become the click target once the roll starts (see
+   .tile.awaiting-click), since the roll button is hidden along with
+   everything else. */
 .game-card.rolling{
   padding: 22px 22px;
   box-shadow: 0 20px 46px -18px var(--pink-glow);
@@ -349,6 +353,17 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 .tile.locked{
   box-shadow: 0 0 0 2px var(--pink), 0 6px 14px var(--pink-glow);
 }
+/* one-by-one mode: once the roll's result is fetched, every not-yet-
+   revealed tile becomes clickable — tapping it locks in that tile's
+   letter, standing in for the roll button (which is hidden away along
+   with everything else while a roll is in progress). */
+.tile.awaiting-click{
+  cursor: pointer;
+}
+.tile.awaiting-click:hover{
+  transform: translateY(-2px);
+}
+.tile.locking{ pointer-events: none; }
 
 /* ---------- per-letter badge flash ----------
    Fires on the main tiles when a badge involving those letters lands.
@@ -1220,6 +1235,37 @@ for(let i=0;i<5;i++){
   t.textContent = '';
   tilesEl.appendChild(t);
   tileRefs.push(t);
+  t.addEventListener('click', () => revealTileByClick(i));
+}
+
+/* one-by-one mode: clicking an unrevealed tile locks in that tile's
+   letter. Order is entirely up to the person clicking — each tile's
+   letter was already decided server-side the moment the roll started,
+   this just controls when it gets shown. */
+function revealTileByClick(i){
+  if(!sequentialAwaitingClicks) return;
+  if(revealedTileIdxs.has(i)) return;
+  const t = tileRefs[i];
+  if(t.classList.contains('locking')) return;
+  t.classList.add('locking');
+  clearInterval(stageIntervals[i]);
+  setTimeout(() => {
+    t.classList.remove('locking', 'awaiting-click');
+    lockTile(t, stageLetters[i]);
+    revealedTileIdxs.add(i);
+    const revealDelay = revealEligibleBadges();
+    if(revealedTileIdxs.size === 5){
+      sequentialAwaitingClicks = false;
+      const word = stageLetters.join('');
+      const saved = pendingRollResult.saved;
+      const credits = pendingRollResult.credits;
+      const id = setTimeout(() => commitRollResult(word, currentMatches, currentTotal, saved, credits), revealDelay);
+      pendingRevealTimers.push(id);
+    } else {
+      breakdownSubEl.textContent = `${5 - revealedTileIdxs.size} tile${5 - revealedTileIdxs.size === 1 ? '' : 's'} left to tap…`;
+    }
+    updateToggleLockState();
+  }, 380);
 }
 
 /* ================= letter tiles: cosmetic flicker only =================
@@ -1250,10 +1296,12 @@ function updateBestWordDisplay(){
 
 /* used by badge-card rendering (badgeCardHTML) to draw the small
    per-badge letter-tile row, independent of scoring */
-function tilesHTML(word, hit, revealedCount){
-  const rc = revealedCount === undefined ? word.length : revealedCount;
+function tilesHTML(word, hit, revealedIdxs){
   const hitSet = new Set(hit || []);
-  return word.split('').map((l,i) => `<div class="mini-tile ${hitSet.has(i)?'hit':''}">${i < rc ? l : ''}</div>`).join('');
+  return word.split('').map((l,i) => {
+    const isRevealed = revealedIdxs === undefined || revealedIdxs.has(i);
+    return `<div class="mini-tile ${hitSet.has(i)?'hit':''}">${isRevealed ? l : ''}</div>`;
+  }).join('');
 }
 
 
@@ -1269,7 +1317,8 @@ const ROLL_MODE_GAPS = { fast:300, medium:800, slow:1200 }; // ms between each l
 let rollMode = 'fast';                     // default: 1st position
 let sequentialReveal = rollMode === 'sequential';
 let quickRollGap = ROLL_MODE_GAPS[rollMode];
-let rollStage = 0;            // how many tiles have been locked so far, in one-by-one mode
+let sequentialAwaitingClicks = false; // true from the moment a one-by-one roll's result is fetched until all 5 tiles are clicked
+let revealedTileIdxs = new Set();     // which tile positions have been revealed so far, in one-by-one mode
 let stageLetters = [];        // the letters committed to for the current in-progress roll
 let stageIntervals = [];      // per-tile flicker intervals, running for every not-yet-locked tile at once
 let currentMatches = [];      // this roll's full badge list, computed up front so it can be revealed progressively
@@ -1278,7 +1327,7 @@ let pendingRollResult = null; // the { letters, matches, total, saved } fetched 
 let shownBadgeIdxs = new Set();
 
 function resetTilesVisual(){
-  tileRefs.forEach(t => { t.textContent = ''; t.classList.remove('spinning','locked','letter-flash'); });
+  tileRefs.forEach(t => { t.textContent = ''; t.classList.remove('spinning','locked','letter-flash','awaiting-click','locking'); });
 }
 
 const darkModeToggle = document.getElementById('darkModeToggle');
@@ -1303,12 +1352,12 @@ rollModeToggle.addEventListener('click', () => {
 });
 
 /* true whenever a roll has been started but not every letter has been
-   dealt yet — covers mid-flicker (spinning) AND the gaps between clicks
-   in one-by-one mode (rollStage > 0 but not yet 5). While true, the
-   mode switch is locked so a bad partial roll can't be abandoned in
-   favor of a fresh set from the other mode. */
+   dealt yet — covers mid-flicker (spinning) AND the gap in one-by-one
+   mode between the result being fetched and all 5 tiles being clicked.
+   While true, the mode switch is locked so a bad partial roll can't be
+   abandoned in favor of a fresh set from the other mode. */
 function rollInProgress(){
-  return spinning || rollStage > 0;
+  return spinning || sequentialAwaitingClicks;
 }
 function updateToggleLockState(){
   const locked = rollInProgress();
@@ -1414,7 +1463,7 @@ function flashLetterTiles(m){
   });
 }
 
-function badgeCardHTML(m, word, revealedCount){
+function badgeCardHTML(m, word, revealedIdxs){
   return `
     <div class="badge-card ${m.rarity!=='common'?'r-'+m.rarity:''} ${m.announce?'announce':''}">
       <div class="badge-header">
@@ -1426,13 +1475,13 @@ function badgeCardHTML(m, word, revealedCount){
         <span class="points-pill">+${m.points}</span>
       </div>
       <div class="badge-desc">${m.desc}</div>
-      <div class="mini-tiles">${tilesHTML(word, m.highlight, revealedCount)}</div>
+      <div class="mini-tiles">${tilesHTML(word, m.highlight, revealedIdxs)}</div>
     </div>`;
 }
 
-function appendBadgeCard(m, word, revealedCount){
+function appendBadgeCard(m, word, revealedIdxs){
   const wrap = document.createElement('div');
-  wrap.innerHTML = badgeCardHTML(m, word, revealedCount).trim();
+  wrap.innerHTML = badgeCardHTML(m, word, revealedIdxs).trim();
   const card = wrap.firstElementChild;
   /* the list is always kept sorted highest-points-first: find the first
      existing card worth less than this one and insert right above it,
@@ -1455,34 +1504,35 @@ function appendBadgeCard(m, word, revealedCount){
 
 /* schedules a small stagger between newly-eligible badges so they still
    land one at a time rather than all snapping in together */
-function scheduleBadgeReveals(list, word, revealedCount){
+function scheduleBadgeReveals(list, word, revealedIdxs){
   let delay = 60;
   list.forEach(m => {
     delay += m.announce ? 200 : 0;
     const revealAt = delay;
-    const id = setTimeout(() => appendBadgeCard(m, word, revealedCount), revealAt);
+    const id = setTimeout(() => appendBadgeCard(m, word, revealedIdxs), revealAt);
     pendingRevealTimers.push(id);
     delay += m.announce ? 620 : 380;
   });
   return delay;
 }
 
-/* one-by-one mode: as each tile locks in, immediately surface any badge
-   whose relevant tiles are now fully visible, instead of waiting for the
-   whole word to be dealt. The full badge list was already computed up
-   front (the word is decided the moment dealing starts), so this only
-   controls *when* each already-known badge gets revealed. Returns how
-   long the caller should wait before those badges have all landed. */
-function revealEligibleBadges(revealedCount){
+/* one-by-one mode: as each tile locks in — in whatever order the
+   person clicked them — immediately surface any badge whose relevant
+   tiles are now fully visible, instead of waiting for the whole word
+   to be dealt. The full badge list was already computed up front (the
+   word is decided the moment dealing starts), so this only controls
+   *when* each already-known badge gets revealed. Returns how long the
+   caller should wait before those badges have all landed. */
+function revealEligibleBadges(){
   const newlyEligible = [];
   currentMatches.forEach((m, idx) => {
     if(shownBadgeIdxs.has(idx)) return;
-    if(m.highlight.every(hIdx => hIdx < revealedCount)){
+    if(m.highlight.every(hIdx => revealedTileIdxs.has(hIdx))){
       shownBadgeIdxs.add(idx);
       newlyEligible.push(m);
     }
   });
-  return newlyEligible.length ? scheduleBadgeReveals(newlyEligible, stageLetters.join(''), revealedCount) : 0;
+  return newlyEligible.length ? scheduleBadgeReveals(newlyEligible, stageLetters.join(''), new Set(revealedTileIdxs)) : 0;
 }
 
 /* Calls the "roll" Edge Function, which is now the ONLY place the
@@ -1499,10 +1549,11 @@ async function fetchRollResult(){
   return data; // { letters, matches, total, saved, credits }
 }
 
-/* the card-shrink / fade-everything-else effect below only applies to
-   quick-roll modes (fast/medium/slow). In "one by one" mode the roll
-   button has to stay reachable between each of the 5 clicks, so that
-   mode keeps the card at full size the whole time. */
+/* collapses the card down to just the tiles and fades out the topbar
+   for the duration of a roll — in every mode, including "one by one",
+   where the tiles themselves become the click target (see
+   .tile.awaiting-click / revealTileByClick) since the roll button is
+   hidden away along with everything else. */
 function enterRollFocus(){
   gameCardEl.classList.add('rolling');
   scorepanelEl.classList.add('rolling');
@@ -1542,50 +1593,40 @@ async function roll(){
   updateToggleLockState();
 
   if(sequentialReveal){
-    /* one click = one tile. On the first click of a sequence, fetch the
-       whole roll's result from the server up front (letters + score),
-       then reveal one tile per subsequent click purely from that
-       already-fetched result — no extra network calls mid-sequence. */
-    if(rollStage === 0){
-      resetTilesVisual();
-      shownBadgeIdxs = new Set();
-      clearPendingReveals();
-      resetRunningScore();
-      badgeListEl.innerHTML = '';
-      breakdownSubEl.textContent = 'Dealing…';
-      stageIntervals = tileRefs.map(t => {
-        t.classList.add('spinning');
-        return setInterval(() => { t.textContent = randLetter(); }, 40);
-      });
-      try{
-        pendingRollResult = await fetchRollResult();
-      } catch(err){
-        rollFailed(err, stageIntervals);
-        return;
-      }
-      stageLetters = pendingRollResult.letters.split('');
-      currentMatches = pendingRollResult.matches;
-      currentTotal = pendingRollResult.total;
+    /* one-by-one mode now starts the same way a quick roll does: one
+       press of ROLL fetches the whole result and collapses the card.
+       From here on, each of the 5 tiles is itself the click target —
+       tapping an unrevealed tile locks in that tile's letter — since
+       the roll button is hidden away along with everything else while
+       the roll is in progress. See revealTileByClick() below. */
+    if(sequentialAwaitingClicks) return;
+    resetTilesVisual();
+    shownBadgeIdxs = new Set();
+    revealedTileIdxs = new Set();
+    clearPendingReveals();
+    resetRunningScore();
+    badgeListEl.innerHTML = '';
+    breakdownSubEl.textContent = 'Rolling…';
+    enterRollFocus();
+    stageIntervals = tileRefs.map(t => {
+      t.classList.remove('letter-flash', 'awaiting-click');
+      t.classList.add('spinning');
+      return setInterval(() => { t.textContent = randLetter(); }, 40);
+    });
+    try{
+      pendingRollResult = await fetchRollResult();
+    } catch(err){
+      rollFailed(err, stageIntervals);
+      return;
     }
-    const i = rollStage;
-    const t = tileRefs[i];
-    setTimeout(() => {
-      clearInterval(stageIntervals[i]);
-      lockTile(t, stageLetters[i]);
-      rollStage++;
-      spinning = false;
-      rollBtn.disabled = false;
-      const revealDelay = revealEligibleBadges(rollStage);
-      if(rollStage === 5){
-        const word = stageLetters.join('');
-        const saved = pendingRollResult.saved;
-        const credits = pendingRollResult.credits;
-        rollStage = 0;
-        const id = setTimeout(() => commitRollResult(word, currentMatches, currentTotal, saved, credits), revealDelay);
-        pendingRevealTimers.push(id);
-      }
-      updateToggleLockState();
-    }, 480);
+    stageLetters = pendingRollResult.letters.split('');
+    currentMatches = pendingRollResult.matches;
+    currentTotal = pendingRollResult.total;
+    spinning = false;
+    sequentialAwaitingClicks = true;
+    tileRefs.forEach(t => t.classList.add('awaiting-click'));
+    breakdownSubEl.textContent = 'Tap a tile to reveal it…';
+    updateToggleLockState();
   } else {
     /* quick roll — fetch the result first, then reveal tiles in a
        staggered sequence exactly as before, just from server data
