@@ -1051,6 +1051,43 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   font-size: 0.88rem;
 }
 
+/* #1 row: taller, stacked layout — name row on top, then the word
+   blown up and centered with its score right underneath. Intentionally
+   allowed to be bigger than the rest of the rows. */
+.leaderboard-row.top1{
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 14px 4px 20px;
+}
+.leaderboard-row-top{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+  width: 100%;
+}
+.leaderboard-top1-feature{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap: 8px;
+}
+.word-tiles-lg{
+  gap: 6px;
+}
+.word-tile-lg{
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  font-size: 1.05rem;
+}
+.leaderboard-top1-score{
+  font-family:'IBM Plex Mono', monospace;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--legendary-text);
+}
+
 /* ---------- highscore flash ---------- */
 @keyframes flashHighscore{
   0%   { background: var(--card); }
@@ -1301,9 +1338,11 @@ const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 function randLetter(){ return ALPHABET[Math.floor(Math.random()*26)]; }
 
 /* renders a word as a row of small bordered letter tiles */
-function wordTilesHTML(word){
+function wordTilesHTML(word, large){
   if(!word) return '';
-  return `<div class="word-tiles">${word.split('').map(l => `<div class="word-tile">${l}</div>`).join('')}</div>`;
+  const tileClass = large ? 'word-tile word-tile-lg' : 'word-tile';
+  const wrapClass = large ? 'word-tiles word-tiles-lg' : 'word-tiles';
+  return `<div class="${wrapClass}">${word.split('').map(l => `<div class="${tileClass}">${l}</div>`).join('')}</div>`;
 }
 
 /* keeps the word-tile row inside the all-time best score box in sync */
@@ -2180,7 +2219,7 @@ function renderAuthModal(){
 
 async function renderLeaderboardModal(){
   leaderboardBody.innerHTML = `<div class="empty-state">Loading…</div>`;
-  const { data, error } = await sbClient.rpc('get_daily_leaderboard', { p_limit: 50 });
+  const { data, error } = await sbClient.rpc('get_daily_leaderboard', { p_limit: 10 });
   if(error){
     leaderboardBody.innerHTML = `<div class="empty-state">Couldn't load the leaderboard.</div>`;
     return;
@@ -2189,16 +2228,37 @@ async function renderLeaderboardModal(){
     leaderboardBody.innerHTML = `<div class="empty-state">No scores logged today — be the first!</div>`;
     return;
   }
-  leaderboardBody.innerHTML = data.map((row, i) => `
-    <div class="leaderboard-row ${i===0?'top1':i===1?'top2':i===2?'top3':''}">
-      <div class="leaderboard-rank">#${i+1}</div>
-      <div class="leaderboard-name-block">
-        <div class="leaderboard-name ${currentUser && row.user_id===currentUser.id ? 'you':''}">${row.username ?? 'anonymous'}</div>
+  leaderboardBody.innerHTML = data.map((row, i) => {
+    const youClass = currentUser && row.user_id===currentUser.id ? 'you' : '';
+    if(i === 0){
+      // #1 gets its own layout: name row up top, then the word blown
+      // up and centered with the score sitting right underneath it.
+      return `
+        <div class="leaderboard-row top1">
+          <div class="leaderboard-row-top">
+            <div class="leaderboard-rank">#1</div>
+            <div class="leaderboard-name-block">
+              <div class="leaderboard-name ${youClass}">${row.username ?? 'anonymous'}</div>
+            </div>
+          </div>
+          <div class="leaderboard-top1-feature">
+            ${row.daily_best_word ? wordTilesHTML(row.daily_best_word, true) : ''}
+            <div class="leaderboard-top1-score">${row.daily_best_score ?? 0}</div>
+          </div>
+        </div>
+      `;
+    }
+    return `
+      <div class="leaderboard-row ${i===1?'top2':i===2?'top3':''}">
+        <div class="leaderboard-rank">#${i+1}</div>
+        <div class="leaderboard-name-block">
+          <div class="leaderboard-name ${youClass}">${row.username ?? 'anonymous'}</div>
+        </div>
+        ${row.daily_best_word ? wordTilesHTML(row.daily_best_word) : ''}
+        <div class="leaderboard-score">${row.daily_best_score ?? 0}</div>
       </div>
-      ${row.daily_best_word ? wordTilesHTML(row.daily_best_word) : ''}
-      <div class="leaderboard-score">${row.daily_best_score ?? 0}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 /* fire-and-forget: figures out where this specific roll's score would
