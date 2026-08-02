@@ -1337,7 +1337,7 @@ const ROLL_MODES = ['fast','medium','slow','sequential'];
 const ROLL_MODE_POS = { fast:'4px', medium:'16px', slow:'28px', sequential:'40px' };
 const ROLL_MODE_TEXT = { fast:'Fast', medium:'Medium', slow:'Slow', sequential:'One by one' };
 const ROLL_MODE_GAPS = { fast:300, medium:800, slow:1200 }; // ms between each letter reveal, quick-roll modes only
-let rollMode = 'fast';                     // default: 1st position
+let rollMode = 'medium';                   // default: 2nd position
 let sequentialReveal = rollMode === 'sequential';
 let quickRollGap = ROLL_MODE_GAPS[rollMode];
 let sequentialAwaitingClicks = false; // true from the moment a one-by-one roll's result is fetched until all 5 tiles are clicked
@@ -2062,6 +2062,9 @@ async function initAuth(){
   }
 }
 initAuth();
+/* show the current leaderboard as soon as the app loads, rather than
+   waiting for the player to tap "leaderboard" */
+openModal('leaderboardModal');
 
 // true while the "change username" form is open from within the Account
 // view — reset on sign-out / modal close so it doesn't leak into the
