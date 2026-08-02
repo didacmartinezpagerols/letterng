@@ -1591,7 +1591,7 @@ function rollFailed(err, clearIntervals){
     renderCredits();
   }
   breakdownSubEl.textContent = (err.credits === 0)
-    ? "Out of credits — come back tomorrow for 2 more."
+    ? "Out of credits — check back in a few hours for 2 more."
     : "Couldn't reach the server — try again.";
   spinning = false;
   rollBtn.disabled = false;
@@ -1601,7 +1601,7 @@ function rollFailed(err, clearIntervals){
 async function roll(){
   if(spinning) return;
   if(currentCredits !== null && currentCredits !== UNLIMITED_CREDITS && currentCredits <= 0){
-    breakdownSubEl.textContent = "Out of credits — come back tomorrow for 2 more.";
+    breakdownSubEl.textContent = "Out of credits — check back in a few hours for 2 more.";
     return;
   }
   spinning = true;
@@ -1961,7 +1961,7 @@ function renderCredits(){
   creditsDisplayEl.classList.toggle('out-of-credits', currentCredits <= 0);
   if(rollHintEl){
     rollHintEl.innerHTML = currentCredits <= 0
-      ? 'Out of credits — back tomorrow.'
+      ? 'Out of credits — back in a few hours.'
       : 'Each roll uses <b>1 credit</b>.';
   }
 }
@@ -2256,7 +2256,7 @@ const CREDIT_PACKS_UI = [
 
 function renderCreditsModal(){
   creditsBody.innerHTML = `
-    <div class="credits-modal-note">Credits refill by 2 every day. Buy more any time to keep rolling.</div>
+    <div class="credits-modal-note">Credits refill by 2 every 12 hours. Buy more any time to keep rolling.</div>
     ${CREDIT_PACKS_UI.map(p => `
       <div class="almanac-entry credit-pack-entry">
         <div class="almanac-left">
