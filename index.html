@@ -75,6 +75,7 @@ body.dark .game-title{ color: #fff; }
 body.dark .game-sub{ color: #a3a5ad; }
 body.dark .tile{ background: #f2f1ee; color: #17181c; }
 body.dark .tile.spinning{ color: #b9b7ae; }
+body.dark .tile.locking{ color: transparent; }
 body.dark .hint{ color: #6b6d75; }
 body.dark .roll-btn-inner{ color: #fff; }
 body.dark .auth-submit{ color: #fff; }
@@ -348,7 +349,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   color: #6B3F52;
   position: relative;
   box-shadow: 0 2px 0 rgba(0,0,0,0.12) inset, 0 6px 14px rgba(0,0,0,0.25);
-  transition: transform 0.12s ease;
+  transition: transform 0.12s ease, color 0.2s ease;
 }
 .tile.spinning{ color: #D2A8BC; }
 .tile.locked{
@@ -364,7 +365,14 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 .tile.awaiting-click:hover{
   transform: translateY(-2px);
 }
-.tile.locking{ pointer-events: none; }
+/* Tapping a tile freezes its flicker (see revealTileByClick), but the
+   frozen letter is just whatever random glyph the 40ms interval last
+   landed on — showing it solid reads as "your letter", then swapping it
+   for the real one a moment later reads as a correction. Fading it to
+   transparent instead means nothing readable is ever shown as a false
+   answer; the real letter then fades back in from transparent once
+   lockTile() removes this class, so it dissolves in rather than pops in. */
+.tile.locking{ pointer-events: none; color: transparent; }
 
 /* ---------- per-letter badge flash ----------
    Fires on the main tiles when a badge involving those letters lands.
@@ -1135,7 +1143,6 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   </div>
   <div class="plate percentile-plate" id="percentilePlate" style="display:none;">
     <div class="plate-num" id="percentileText">—</div>
-    <div class="plate-label">this roll's percentile</div>
   </div>
   <div class="best-score-collapse" id="bestScoreCollapse">
     <div>
@@ -1591,7 +1598,7 @@ function rollFailed(err, clearIntervals){
     renderCredits();
   }
   breakdownSubEl.textContent = (err.credits === 0)
-    ? "Out of credits — check back in a few hours for 2 more."
+    ? "Out of credits — come back tomorrow for 2 more."
     : "Couldn't reach the server — try again.";
   spinning = false;
   rollBtn.disabled = false;
@@ -1601,7 +1608,7 @@ function rollFailed(err, clearIntervals){
 async function roll(){
   if(spinning) return;
   if(currentCredits !== null && currentCredits !== UNLIMITED_CREDITS && currentCredits <= 0){
-    breakdownSubEl.textContent = "Out of credits — check back in a few hours for 2 more.";
+    breakdownSubEl.textContent = "Out of credits — come back tomorrow for 2 more.";
     return;
   }
   spinning = true;
@@ -1961,7 +1968,7 @@ function renderCredits(){
   creditsDisplayEl.classList.toggle('out-of-credits', currentCredits <= 0);
   if(rollHintEl){
     rollHintEl.innerHTML = currentCredits <= 0
-      ? 'Out of credits — back in a few hours.'
+      ? 'Out of credits — back tomorrow.'
       : 'Each roll uses <b>1 credit</b>.';
   }
 }
@@ -2222,11 +2229,11 @@ async function updatePercentileBox(score){
     let label;
     if(rank <= total / 2){
       const pct = Math.max(1, Math.round((rank / total) * 100));
-      label = `top ${pct} percentile`;
+      label = `top ${pct}%`;
     } else {
       const belowCount = total - rank;
       const pct = Math.max(1, Math.round((belowCount / total) * 100));
-      label = `bottom ${pct} percentile`;
+      label = `bottom ${pct}%`;
     }
     percentileText.textContent = label;
     percentilePlate.style.display = '';
@@ -2256,7 +2263,7 @@ const CREDIT_PACKS_UI = [
 
 function renderCreditsModal(){
   creditsBody.innerHTML = `
-    <div class="credits-modal-note">Credits refill by 2 every 12 hours. Buy more any time to keep rolling.</div>
+    <div class="credits-modal-note">Credits refill by 2 every day. Buy more any time to keep rolling.</div>
     ${CREDIT_PACKS_UI.map(p => `
       <div class="almanac-entry credit-pack-entry">
         <div class="almanac-left">
