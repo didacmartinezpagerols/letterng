@@ -1072,14 +1072,42 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   align-items:center;
   gap: 8px;
 }
+.leaderboard-top1-eyebrow{
+  font-family:'Inter', sans-serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .word-tiles-lg{
   gap: 6px;
 }
 .word-tile-lg{
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  font-size: 1.05rem;
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  font-size: 1.4rem;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  animation: glimmerBox 2.8s ease-in-out infinite;
+}
+.word-tile-letter{
+  color: var(--muted);
+  animation: glimmerLetter 2.8s ease-in-out infinite;
+}
+@keyframes glimmerLetter{
+  0%    { color: var(--muted); text-shadow: none; }
+  10%   { color: var(--pink); text-shadow: 0 0 10px var(--pink-glow); }
+  25%   { color: var(--pink); text-shadow: 0 0 10px var(--pink-glow); }
+  40%   { color: var(--muted); text-shadow: none; }
+  100%  { color: var(--muted); text-shadow: none; }
+}
+@keyframes glimmerBox{
+  0%    { border-color: var(--border); box-shadow: none; }
+  10%   { border-color: var(--pink); box-shadow: 0 0 10px var(--pink-glow); }
+  25%   { border-color: var(--pink); box-shadow: 0 0 10px var(--pink-glow); }
+  40%   { border-color: var(--border); box-shadow: none; }
+  100%  { border-color: var(--border); box-shadow: none; }
 }
 .leaderboard-top1-score{
   font-family:'IBM Plex Mono', monospace;
@@ -1342,7 +1370,15 @@ function wordTilesHTML(word, large){
   if(!word) return '';
   const tileClass = large ? 'word-tile word-tile-lg' : 'word-tile';
   const wrapClass = large ? 'word-tiles word-tiles-lg' : 'word-tiles';
-  return `<div class="${wrapClass}">${word.split('').map(l => `<div class="${tileClass}">${l}</div>`).join('')}</div>`;
+  const tiles = word.split('').map((l, i) => {
+    if(!large) return `<div class="${tileClass}">${l}</div>`;
+    /* #1's word gets a pink glimmer that ripples left to right, one
+       letter at a time — each tile's border and its letter animate
+       on the same staggered delay so they pulse together. */
+    const delay = (i * 0.09).toFixed(2) + 's';
+    return `<div class="${tileClass}" style="animation-delay:${delay}"><span class="word-tile-letter" style="animation-delay:${delay}">${l}</span></div>`;
+  }).join('');
+  return `<div class="${wrapClass}">${tiles}</div>`;
 }
 
 /* keeps the word-tile row inside the all-time best score box in sync */
@@ -2242,7 +2278,10 @@ async function renderLeaderboardModal(){
             </div>
           </div>
           <div class="leaderboard-top1-feature">
-            ${row.daily_best_word ? wordTilesHTML(row.daily_best_word, true) : ''}
+            ${row.daily_best_word ? `
+              <div class="leaderboard-top1-eyebrow">today's best word</div>
+              ${wordTilesHTML(row.daily_best_word, true)}
+            ` : ''}
             <div class="leaderboard-top1-score">${row.daily_best_score ?? 0}</div>
           </div>
         </div>
