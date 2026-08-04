@@ -1140,6 +1140,23 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   40%   { color: var(--muted); text-shadow: none; }
   100%  { color: var(--muted); text-shadow: none; }
 }
+/* profanity filter: a censored word's tiles render plain (no glimmer)
+   so it's briefly legible, then fade to a solid black box + letter
+   after 1s, making the word unreadable. Declared after the glimmer
+   rules above so it wins the animation-property conflict on tiles
+   that also carry .word-tile-lg / .word-tile-soft. */
+.word-tile-censor{
+  animation: wordTileCensorFade 0.45s ease forwards;
+  animation-delay: 1s;
+}
+@keyframes wordTileCensorFade{
+  to{
+    background: #000;
+    border-color: #000;
+    color: #000;
+  }
+}
+
 @keyframes glimmerBoxSoft{
   0%    { border-color: var(--border); box-shadow: none; }
   10%   { border-color: var(--glare-pink); box-shadow: 0 0 6px var(--glare-pink-glow); }
@@ -1403,18 +1420,32 @@ function revealTileByClick(i){
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 function randLetter(){ return ALPHABET[Math.floor(Math.random()*26)]; }
 
+/* words that must never sit readable on the leaderboard — matched
+   case-insensitively against the whole rolled word. Extend this set
+   with any other slurs/profanity that should get the same treatment. */
+const CENSORED_WORDS = new Set(['NIGGA', 'NIGGER']);
+function isCensoredWord(word){
+  return !!word && CENSORED_WORDS.has(word.toUpperCase());
+}
+
 /* renders a word as a row of small bordered letter tiles.
    tier: 'top1' (big tiles, strongest glimmer), 'soft' (normal-size
    tiles with a dialed-back glimmer, used for #2/#3), or omitted for
-   a plain, non-animated row (e.g. the all-time best score plate). */
+   a plain, non-animated row (e.g. the all-time best score plate).
+   If the word is on the censor list, the glimmer is skipped entirely
+   and .word-tile-censor is added instead — tiles stay plainly
+   readable for 1s, then the CSS animation fades them to solid black
+   so the word becomes unreadable. */
 function wordTilesHTML(word, tier){
   if(!word) return '';
+  const censored = isCensoredWord(word);
   const large = tier === 'top1';
-  const tileClass = large ? 'word-tile word-tile-lg' : (tier ? 'word-tile word-tile-soft' : 'word-tile');
+  const tileClass = (large ? 'word-tile word-tile-lg' : (tier ? 'word-tile word-tile-soft' : 'word-tile'))
+    + (censored ? ' word-tile-censor' : '');
   const wrapClass = large ? 'word-tiles word-tiles-lg' : 'word-tiles';
   const letterClass = large ? 'word-tile-letter' : 'word-tile-letter-soft';
   const tiles = word.split('').map((l, i) => {
-    if(!tier) return `<div class="${tileClass}">${l}</div>`;
+    if(censored || !tier) return `<div class="${tileClass}">${l}</div>`;
     /* the glimmer ripples left to right, one letter at a time — each
        tile's border and its letter animate on the same staggered
        delay so they pulse together. */
