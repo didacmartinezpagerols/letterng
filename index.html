@@ -31,6 +31,13 @@
   --mini-hit-text: #FCEFF5;
   --word-tile-outline: #DCB4C6;
 
+  /* dedicated glare color — intentionally NOT overridden in dark mode,
+     so the leaderboard glimmer always stays a deliberate accent color
+     even though --pink itself is muted in dark theme. */
+  --glare-pink: #C2447A;
+  --glare-pink-light: #E38FB3;
+  --glare-pink-glow: rgba(194,68,122,0.25);
+
   --common-bg: #f1f2f4;  --common-text: #63666d;
   --uncommon-bg: #e1f6ea; --uncommon-text: #1f8a4c;
   --rare-bg: #e8edff;     --rare-text: #3552e0;
@@ -39,23 +46,29 @@
 }
 
 body.dark{
-  --bg: #101014;
-  --surface: #1b1b21;
-  --card: #050507;
-  --ink: #f2f2f5;
-  --muted: #9a9ca5;
-  --border: #2c2c33;
-  --pink: #9498a3;
-  --pink-light: #cdd0d8;
-  --pink-glow: rgba(148,152,163,0.25);
-  --secondary-text: #a7a9b2;
-  --points-pill-bg: #232329;
-  --mini-tile-bg: #232329;
-  --mini-tile-color: #6f7178;
-  --switch-track-off: #3a3a42;
-  --mini-hit-bg: #f2f2f5;
-  --mini-hit-text: #101014;
-  --word-tile-outline: #3d3e46;
+  --bg: #0A0A0F;
+  --surface: #14142E;
+  --card: #0E0E25;
+  --ink: #E7E6EF;
+  --muted: #6E6C87;
+  --border: #1E1E3A;
+  --pink: #8E8CC4;
+  --pink-light: #B4B2DE;
+  --pink-glow: rgba(142,140,196,0.25);
+  --secondary-text: #A2A0BE;
+  --points-pill-bg: #14142E;
+  --mini-tile-bg: #14142E;
+  --mini-tile-color: #5C5A78;
+  --switch-track-off: #201F3D;
+  --mini-hit-bg: #E7E6EF;
+  --mini-hit-text: #070713;
+  --word-tile-outline: #262545;
+
+  /* dark theme gets its own take on the glare — shifted purple so it
+     reads richer against the dark background instead of plain pink. */
+  --glare-pink: #B04FE0;
+  --glare-pink-light: #D19CF0;
+  --glare-pink-glow: rgba(176,79,224,0.35);
 
   --common-bg: #202127;  --common-text: #b7b9c0;
   --uncommon-bg: #123021; --uncommon-text: #4ade80;
@@ -1089,23 +1102,48 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   font-size: 1.4rem;
   border: 1.5px solid var(--border);
   background: var(--card);
-  animation: glimmerBox 2.8s ease-in-out infinite;
+  animation: glimmerBoxStrong 2.8s ease-in-out infinite;
 }
 .word-tile-letter{
   color: var(--muted);
-  animation: glimmerLetter 2.8s ease-in-out infinite;
+  animation: glimmerLetterStrong 2.8s ease-in-out infinite;
 }
-@keyframes glimmerLetter{
+/* #1's glare — the strongest of the three, bigger blur + a tight
+   secondary glow so it reads as brighter than #2/#3. */
+@keyframes glimmerLetterStrong{
   0%    { color: var(--muted); text-shadow: none; }
-  10%   { color: var(--pink); text-shadow: 0 0 10px var(--pink-glow); }
-  25%   { color: var(--pink); text-shadow: 0 0 10px var(--pink-glow); }
+  10%   { color: var(--glare-pink); text-shadow: 0 0 16px var(--glare-pink-glow), 0 0 6px var(--glare-pink-light); }
+  25%   { color: var(--glare-pink); text-shadow: 0 0 16px var(--glare-pink-glow), 0 0 6px var(--glare-pink-light); }
   40%   { color: var(--muted); text-shadow: none; }
   100%  { color: var(--muted); text-shadow: none; }
 }
-@keyframes glimmerBox{
+@keyframes glimmerBoxStrong{
   0%    { border-color: var(--border); box-shadow: none; }
-  10%   { border-color: var(--pink); box-shadow: 0 0 10px var(--pink-glow); }
-  25%   { border-color: var(--pink); box-shadow: 0 0 10px var(--pink-glow); }
+  10%   { border-color: var(--glare-pink); box-shadow: 0 0 16px var(--glare-pink-glow), 0 0 5px var(--glare-pink-light); }
+  25%   { border-color: var(--glare-pink); box-shadow: 0 0 16px var(--glare-pink-glow), 0 0 5px var(--glare-pink-light); }
+  40%   { border-color: var(--border); box-shadow: none; }
+  100%  { border-color: var(--border); box-shadow: none; }
+}
+
+/* #2/#3 word tiles — same glare, dialed back so #1 still stands out. */
+.word-tile-soft{
+  animation: glimmerBoxSoft 2.8s ease-in-out infinite;
+}
+.word-tile-letter-soft{
+  color: var(--muted);
+  animation: glimmerLetterSoft 2.8s ease-in-out infinite;
+}
+@keyframes glimmerLetterSoft{
+  0%    { color: var(--muted); text-shadow: none; }
+  10%   { color: var(--glare-pink); text-shadow: 0 0 6px var(--glare-pink-glow); }
+  25%   { color: var(--glare-pink); text-shadow: 0 0 6px var(--glare-pink-glow); }
+  40%   { color: var(--muted); text-shadow: none; }
+  100%  { color: var(--muted); text-shadow: none; }
+}
+@keyframes glimmerBoxSoft{
+  0%    { border-color: var(--border); box-shadow: none; }
+  10%   { border-color: var(--glare-pink); box-shadow: 0 0 6px var(--glare-pink-glow); }
+  25%   { border-color: var(--glare-pink); box-shadow: 0 0 6px var(--glare-pink-glow); }
   40%   { border-color: var(--border); box-shadow: none; }
   100%  { border-color: var(--border); box-shadow: none; }
 }
@@ -1365,18 +1403,23 @@ function revealTileByClick(i){
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 function randLetter(){ return ALPHABET[Math.floor(Math.random()*26)]; }
 
-/* renders a word as a row of small bordered letter tiles */
-function wordTilesHTML(word, large){
+/* renders a word as a row of small bordered letter tiles.
+   tier: 'top1' (big tiles, strongest glimmer), 'soft' (normal-size
+   tiles with a dialed-back glimmer, used for #2/#3), or omitted for
+   a plain, non-animated row (e.g. the all-time best score plate). */
+function wordTilesHTML(word, tier){
   if(!word) return '';
-  const tileClass = large ? 'word-tile word-tile-lg' : 'word-tile';
+  const large = tier === 'top1';
+  const tileClass = large ? 'word-tile word-tile-lg' : (tier ? 'word-tile word-tile-soft' : 'word-tile');
   const wrapClass = large ? 'word-tiles word-tiles-lg' : 'word-tiles';
+  const letterClass = large ? 'word-tile-letter' : 'word-tile-letter-soft';
   const tiles = word.split('').map((l, i) => {
-    if(!large) return `<div class="${tileClass}">${l}</div>`;
-    /* #1's word gets a pink glimmer that ripples left to right, one
-       letter at a time — each tile's border and its letter animate
-       on the same staggered delay so they pulse together. */
+    if(!tier) return `<div class="${tileClass}">${l}</div>`;
+    /* the glimmer ripples left to right, one letter at a time — each
+       tile's border and its letter animate on the same staggered
+       delay so they pulse together. */
     const delay = (i * 0.09).toFixed(2) + 's';
-    return `<div class="${tileClass}" style="animation-delay:${delay}"><span class="word-tile-letter" style="animation-delay:${delay}">${l}</span></div>`;
+    return `<div class="${tileClass}" style="animation-delay:${delay}"><span class="${letterClass}" style="animation-delay:${delay}">${l}</span></div>`;
   }).join('');
   return `<div class="${wrapClass}">${tiles}</div>`;
 }
@@ -2255,7 +2298,7 @@ function renderAuthModal(){
 
 async function renderLeaderboardModal(){
   leaderboardBody.innerHTML = `<div class="empty-state">Loading…</div>`;
-  const { data, error } = await sbClient.rpc('get_daily_leaderboard', { p_limit: 10 });
+  const { data, error } = await sbClient.rpc('get_daily_leaderboard', { p_limit: 3 });
   if(error){
     leaderboardBody.innerHTML = `<div class="empty-state">Couldn't load the leaderboard.</div>`;
     return;
@@ -2280,7 +2323,7 @@ async function renderLeaderboardModal(){
           <div class="leaderboard-top1-feature">
             ${row.daily_best_word ? `
               <div class="leaderboard-top1-eyebrow">today's best word</div>
-              ${wordTilesHTML(row.daily_best_word, true)}
+              ${wordTilesHTML(row.daily_best_word, 'top1')}
             ` : ''}
             <div class="leaderboard-top1-score">${row.daily_best_score ?? 0}</div>
           </div>
@@ -2293,7 +2336,7 @@ async function renderLeaderboardModal(){
         <div class="leaderboard-name-block">
           <div class="leaderboard-name ${youClass}">${row.username ?? 'anonymous'}</div>
         </div>
-        ${row.daily_best_word ? wordTilesHTML(row.daily_best_word) : ''}
+        ${row.daily_best_word ? wordTilesHTML(row.daily_best_word, 'soft') : ''}
         <div class="leaderboard-score">${row.daily_best_score ?? 0}</div>
       </div>
     `;
