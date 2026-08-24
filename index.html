@@ -344,9 +344,11 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
    was also collapsing #gameView itself mid-roll, making the tiles
    disappear; (2) its `overflow:hidden` clipped the tiles' own
    box-shadow horizontally on the end tiles. The padding/negative-margin
-   pair below keeps the clip box the same *net* width (so nothing
-   shifts) while giving shadow blur room to render before getting cut
-   off. */
+   pair below keeps the clip box the same *net* size (so nothing
+   shifts) while giving shadow/glow bleed room on all four sides
+   before it gets cut off — horizontal for the end tiles' resting
+   shadow, vertical too for the brighter glow the tiles flash during
+   rolling and badge reveals. */
 .view-collapse{
   display:grid;
   grid-template-rows: 1fr;
@@ -356,8 +358,8 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 .view-collapse > div{
   overflow: hidden;
   min-height: 0;
-  margin: 0 -24px;
-  padding: 0 24px;
+  margin: -24px;
+  padding: 24px;
 }
 #distributionBlock{
   grid-template-rows: 0fr;
