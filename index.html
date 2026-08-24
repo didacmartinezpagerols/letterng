@@ -113,6 +113,13 @@ body{
   transition: background 0.3s ease, color 0.3s ease;
   width: 100%;
 }
+#appRoot{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  width: 100%;
+  zoom: 0.9;
+}
 body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
 
 .topbar{
@@ -143,7 +150,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 }
 .wordmark span{ color: var(--pink); }
 .credits-display{
-  display:inline-flex;
+  display:none;
   align-items:center;
   gap: 5px;
   font-family:'Space Grotesk', sans-serif;
@@ -1206,9 +1213,11 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 
 <div id="hcaptchaContainer" style="display:none"></div>
 
+<div id="appRoot">
+
 <div class="topbar" id="topbar">
   <div class="wordmark-col">
-    <div class="wordmark">lette<span>rng</span></div>
+    <button class="reset-link" id="authBtn">sign in</button>
     <button type="button" class="credits-display" id="creditsDisplay" title="Click to get more credits">
       <span class="credits-word">credits:</span> <span id="creditsCount">–</span>
     </button>
@@ -1229,8 +1238,6 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
       <input type="checkbox" id="darkModeToggle">
       <span class="switch-track"><span class="switch-thumb"></span></span>
     </label>
-    <button class="reset-link" id="authBtn">sign in</button>
-    <div class="tag">letter roll · prototype</div>
   </div>
 </div>
 
@@ -1339,6 +1346,8 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
     </div>
     <div class="modal-body" id="creditsBody"></div>
   </div>
+</div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
