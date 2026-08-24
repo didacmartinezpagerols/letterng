@@ -86,11 +86,12 @@ body.dark .switch-thumb{ background:#fff; }
 body.dark .roll-mode-thumb{ background: #fff; }
 body.dark .game-title{ color: #fff; }
 body.dark .game-sub{ color: #a3a5ad; }
+
 body.dark .tile{ background: #f2f1ee; color: #17181c; }
 body.dark .tile.spinning{ color: #b9b7ae; }
 body.dark .tile.locking{ color: transparent; }
 body.dark .hint{ color: #6b6d75; }
-body.dark .roll-btn-inner{ color: #fff; }
+
 body.dark .auth-submit{ color: #fff; }
 body.dark .auth-change-username{ color: #fff; }
 
@@ -298,7 +299,10 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   max-width: 480px;
   background: var(--card);
   border-radius: 26px;
-  padding: 34px 30px 28px;
+  /* bottom padding trimmed down now that the roll button (which used
+     to need room to sit in the footer) is gone — the footer is just a
+     line of hint text now. */
+  padding: 34px 30px 16px;
   position: relative;
   box-shadow: 0 30px 60px -20px rgba(0,0,0,0.35);
   transition: padding 0.45s cubic-bezier(.65,0,.35,1), box-shadow 0.45s ease;
@@ -354,6 +358,35 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   transition: margin 0.45s cubic-bezier(.65,0,.35,1);
 }
 .game-card.rolling .tiles{ margin: 4px 0; }
+
+/* ---------- roll phrase: floats above the tiles while rolling ---------- */
+.roll-phrase{
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 88%;
+  transform: translate(-50%, -100%) scale(0.94);
+  text-align: center;
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1.28;
+  color: var(--glare-pink);
+  text-shadow: 0 0 18px var(--glare-pink-glow), 0 0 36px var(--glare-pink-glow);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(.34,1.56,.64,1);
+}
+.roll-phrase.show{
+  opacity: 1;
+  transform: translate(-50%, calc(-100% - 10px)) scale(1);
+  animation: rollPhrasePulse 1.8s ease-in-out infinite;
+}
+@keyframes rollPhrasePulse{
+  0%, 100% { text-shadow: 0 0 18px var(--glare-pink-glow), 0 0 36px var(--glare-pink-glow); }
+  50%      { text-shadow: 0 0 10px var(--glare-pink-glow), 0 0 22px var(--glare-pink-glow); }
+}
 
 .tile{
   flex:1;
@@ -423,34 +456,34 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   line-height: 1.5;
 }
 
-.roll-btn{
-  --ring: conic-gradient(from 0deg, var(--pink), var(--pink-light), var(--pink));
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  padding: 4px;
-  background: var(--ring);
-  border: none;
+/* invisible "safe area" over the bottom-right corner of the card —
+   stands in for the old roll button. Generously sized (not just the
+   old button's footprint) so it's easy to hit without precision.
+   Disabled the same moments the old button used to be: while a roll
+   is in flight, and while one-by-one mode is awaiting tile taps (see
+   rollZone.classList.toggle('disabled', ...) in JS) — pointer-events
+   is turned off then so clicks fall through to the tiles underneath. */
+.roll-zone{
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 46%;
+  height: 42%;
+  min-width: 120px;
+  min-height: 90px;
+  border-radius: 0 0 26px 0; /* matches the card's own corner radius */
   cursor: pointer;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-shrink:0;
+  transition: background 0.2s ease;
 }
-.roll-btn:disabled{ opacity: 0.55; cursor: default; }
-.roll-btn-inner{
-  width:100%;
-  height:100%;
-  border-radius: 50%;
-  background: var(--card);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-family:'Space Grotesk', sans-serif;
-  font-weight: 600;
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  color: #6B3F52;
+.roll-zone:hover{
+  background: transparent;
+}
+.roll-zone:active{
+  background: transparent;
+}
+.roll-zone.disabled{
+  pointer-events: none;
+  cursor: default;
 }
 
 /* ---------- score plate ---------- */
@@ -494,6 +527,24 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   color: var(--muted);
   text-transform: uppercase;
   margin-top: 2px;
+}
+
+/* ---------- main score plate: larger number, tight box, no outline glow ----------
+   The digits still keep the leaderboard-style letter glare (text-shadow);
+   the plate itself uses the same quiet border as the other plates. */
+.score-plate{
+  padding: 8px 16px 10px;
+  min-width: 0;
+  width: fit-content;
+  border-radius: 14px;
+}
+.score-plate .plate-num{
+  font-size: 3.4rem;
+  line-height: 1;
+  text-shadow: 0 0 20px var(--glare-pink-glow), 0 0 8px var(--glare-pink-light);
+}
+.score-plate .plate-label{
+  margin-top: 4px;
 }
 
 .stat{
@@ -1242,6 +1293,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 </div>
 
 <div class="game-card">
+  <div class="roll-phrase" id="rollPhrase"></div>
   <div class="collapse-block" id="introBlock">
     <div>
       <h1 class="game-title">letterng</h1>
@@ -1254,17 +1306,21 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   <div class="collapse-block" id="footerBlock">
     <div>
       <div class="card-footer">
-        <div class="hint" id="rollHint">Each roll uses <b>1 credit</b>.</div>
-        <button class="roll-btn" id="rollBtn">
-          <div class="roll-btn-inner">ROLL</div>
-        </button>
+        <div class="hint" id="rollHint">Each roll uses <b>1 credit</b>. Tap the bottom-right of the card to roll.</div>
       </div>
     </div>
   </div>
+
+  <!-- Roll button removed — rolling now happens by tapping/clicking a
+       generous invisible zone over the bottom-right corner of the card
+       itself (see .roll-zone below). Disabled/hidden the same way the
+       old button effectively was: rollZone.disabled toggles it off
+       while a roll is in progress or awaiting one-by-one taps. -->
+  <div class="roll-zone" id="rollZone" role="button" aria-label="Roll"></div>
 </div>
 
 <div class="scorepanel" id="scorepanel">
-  <div class="plate">
+  <div class="plate score-plate">
     <div class="plate-num" id="lastRollScore">0</div>
     <div class="plate-label">score</div>
   </div>
@@ -1366,8 +1422,9 @@ const earnedBadges = new Set();
 const gameCardEl = document.querySelector('.game-card');
 const topbarEl = document.getElementById('topbar');
 const scorepanelEl = document.getElementById('scorepanel');
+const rollPhraseEl = document.getElementById('rollPhrase');
 const tilesEl = document.getElementById('tiles');
-const rollBtn = document.getElementById('rollBtn');
+const rollZone = document.getElementById('rollZone');
 const totalScoreEl = document.getElementById('lastRollScore');
 const bestScoreEl = document.getElementById('bestScore');
 const percentilePlate = document.getElementById('percentilePlate');
@@ -1730,6 +1787,37 @@ async function fetchRollResult(){
   return data; // { letters, matches, total, saved, credits }
 }
 
+/* ---------- roll phrase ----------
+   A big glowing line that floats above the tiles for the duration of
+   a roll — a different random one each time, never the same phrase
+   twice in a row. */
+const ROLL_PHRASES = [
+  "Feeling lucky today?",
+  "Can you beat the top 1%?",
+  "Rolls are limited, make them count.",
+  "Could you imagine getting poker Aces?",
+  "This could be the one.",
+  "Every roll's a fresh shot.",
+  "Let's see what the dice think.",
+];
+let lastRollPhrase = null;
+function pickRollPhrase(){
+  if(ROLL_PHRASES.length === 1) return ROLL_PHRASES[0];
+  let phrase;
+  do{
+    phrase = ROLL_PHRASES[Math.floor(Math.random() * ROLL_PHRASES.length)];
+  } while(phrase === lastRollPhrase);
+  lastRollPhrase = phrase;
+  return phrase;
+}
+function showRollPhrase(){
+  rollPhraseEl.textContent = pickRollPhrase();
+  rollPhraseEl.classList.add('show');
+}
+function hideRollPhrase(){
+  rollPhraseEl.classList.remove('show');
+}
+
 /* collapses the card down to just the tiles and fades out the topbar
    for the duration of a roll — in every mode, including "one by one",
    where the tiles themselves become the click target (see
@@ -1739,11 +1827,13 @@ function enterRollFocus(){
   gameCardEl.classList.add('rolling');
   scorepanelEl.classList.add('rolling');
   topbarEl.classList.add('rolling');
+  showRollPhrase();
 }
 function exitRollFocus(){
   gameCardEl.classList.remove('rolling');
   scorepanelEl.classList.remove('rolling');
   topbarEl.classList.remove('rolling');
+  hideRollPhrase();
 }
 
 function rollFailed(err, clearIntervals){
@@ -1759,7 +1849,7 @@ function rollFailed(err, clearIntervals){
     ? "Out of credits — come back tomorrow for 2 more."
     : "Couldn't reach the server — try again.";
   spinning = false;
-  rollBtn.disabled = false;
+  rollZone.classList.remove('disabled');
   updateToggleLockState();
 }
 
@@ -1770,12 +1860,12 @@ async function roll(){
     return;
   }
   spinning = true;
-  rollBtn.disabled = true;
+  rollZone.classList.add('disabled');
   updateToggleLockState();
 
   if(sequentialReveal){
-    /* one-by-one mode now starts the same way a quick roll does: one
-       press of ROLL fetches the whole result and collapses the card.
+    /* one-by-one mode now starts the same way tapping the roll zone
+       always did: one tap fetches the whole result and collapses the card.
        From here on, each of the 5 tiles is itself the click target —
        tapping an unrevealed tile locks in that tile's letter — since
        the roll button is hidden away along with everything else while
@@ -1906,7 +1996,7 @@ function commitRollResult(word, matches, total, saved, credits){
   }
 
   spinning = false;
-  rollBtn.disabled = false;
+  rollZone.classList.remove('disabled');
   updateToggleLockState();
 
   /* let the final score sit for a beat while still in the shrunk
@@ -2432,7 +2522,7 @@ authBtn.addEventListener('click', () => openModal('authModal'));
 openLeaderboardBtn.addEventListener('click', () => openModal('leaderboardModal'));
 creditsDisplayEl.addEventListener('click', () => openModal('creditsModal'));
 
-rollBtn.addEventListener('click', roll);
+rollZone.addEventListener('click', roll);
 
 /* ================= credit packs / payments ================= */
 const creditsBody = document.getElementById('creditsBody');
