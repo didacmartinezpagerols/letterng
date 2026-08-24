@@ -337,10 +337,28 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 /* ---------- distribution view: swaps in for the tiles when the
    top-left corner (.graph-zone) is tapped ----------
    #gameView wraps everything the normal card shows (title, tiles,
-   footer); #distributionBlock holds the chart. Both are collapse-blocks
-   (see above) so switching between them animates height smoothly
-   instead of jumping. #distributionBlock starts collapsed since the
-   card opens in normal "roll" mode. */
+   footer); #distributionBlock holds the chart. Both use the same
+   accordion-collapse technique as .collapse-block above, but under
+   their OWN class (.view-collapse) rather than reusing .collapse-block
+   — reusing it caused two bugs: (1) `.game-card.rolling .collapse-block`
+   was also collapsing #gameView itself mid-roll, making the tiles
+   disappear; (2) its `overflow:hidden` clipped the tiles' own
+   box-shadow horizontally on the end tiles. The padding/negative-margin
+   pair below keeps the clip box the same *net* width (so nothing
+   shifts) while giving shadow blur room to render before getting cut
+   off. */
+.view-collapse{
+  display:grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.45s cubic-bezier(.65,0,.35,1), opacity 0.3s ease;
+  opacity: 1;
+}
+.view-collapse > div{
+  overflow: hidden;
+  min-height: 0;
+  margin: 0 -24px;
+  padding: 0 24px;
+}
 #distributionBlock{
   grid-template-rows: 0fr;
   opacity: 0;
@@ -1393,7 +1411,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 <div class="game-card">
   <div class="roll-phrase" id="rollPhrase"></div>
 
-  <div class="collapse-block" id="gameView">
+  <div class="view-collapse" id="gameView">
     <div>
       <div class="collapse-block" id="introBlock">
         <div>
@@ -1421,7 +1439,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
        corner (.graph-zone) is tapped. Chart is built and refetched
        from get_score_distribution() each time it's opened — see
        renderDistributionChart(). -->
-  <div class="collapse-block" id="distributionBlock">
+  <div class="view-collapse" id="distributionBlock">
     <div>
       <div class="distribution-view">
         <div class="distribution-header">
