@@ -334,6 +334,71 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   opacity: 0;
 }
 
+/* ---------- distribution view: swaps in for the tiles when the
+   top-left corner (.graph-zone) is tapped ----------
+   #gameView wraps everything the normal card shows (title, tiles,
+   footer); #distributionBlock holds the chart. Both are collapse-blocks
+   (see above) so switching between them animates height smoothly
+   instead of jumping. #distributionBlock starts collapsed since the
+   card opens in normal "roll" mode. */
+#distributionBlock{
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.game-card.graph-mode #gameView{
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.game-card.graph-mode #distributionBlock{
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.distribution-header{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap: 12px;
+}
+.distribution-title{
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+.distribution-count{
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.distribution-chart{
+  width: 100%;
+  height: 168px;
+  margin-top: 14px;
+  position: relative;
+}
+.distribution-chart svg{
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.dist-bar{ fill: var(--pink); }
+.dist-axis-line{ stroke: var(--border); stroke-width: 1; }
+.dist-axis-text{
+  fill: var(--muted);
+  font-family:'Space Grotesk', sans-serif;
+  font-size: 9px;
+}
+.distribution-empty{
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 46px 0;
+}
+.distribution-hint{
+  margin-top: 12px;
+}
+
 .game-title{
   font-family:'Space Grotesk', sans-serif;
   font-weight: 700;
@@ -484,6 +549,39 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 .roll-zone.disabled{
   pointer-events: none;
   cursor: default;
+}
+
+/* invisible "safe area" over the top-left corner of the card — same
+   mechanism as .roll-zone, but tapping it swaps the card's contents
+   over to the score-distribution chart (see .graph-mode below) instead
+   of rolling. Disabled the same moments .roll-zone is, so you can't
+   switch views mid-roll; and while the graph is showing, .roll-zone
+   itself is disabled (see .game-card.graph-mode .roll-zone) so a tap
+   meant to dismiss the chart can't accidentally trigger a roll. */
+.graph-zone{
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 40%;
+  height: 30%;
+  min-width: 100px;
+  min-height: 70px;
+  border-radius: 26px 0 0 0; /* matches the card's own corner radius */
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.graph-zone:hover{
+  background: transparent;
+}
+.graph-zone:active{
+  background: transparent;
+}
+.graph-zone.disabled{
+  pointer-events: none;
+  cursor: default;
+}
+.game-card.graph-mode .roll-zone{
+  pointer-events: none;
 }
 
 /* ---------- score plate ---------- */
@@ -1294,19 +1392,46 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 
 <div class="game-card">
   <div class="roll-phrase" id="rollPhrase"></div>
-  <div class="collapse-block" id="introBlock">
+
+  <div class="collapse-block" id="gameView">
     <div>
-      <h1 class="game-title">letterng</h1>
-      <p class="game-sub">Roll five letters. Chase words, patterns, and pure luck across every rule in the book.</p>
+      <div class="collapse-block" id="introBlock">
+        <div>
+          <h1 class="game-title">letterng</h1>
+          <p class="game-sub">Roll five letters. Chase words, patterns, and pure luck across every rule in the book.</p>
+        </div>
+      </div>
+
+      <div class="tiles" id="tiles"></div>
+
+      <div class="collapse-block" id="footerBlock">
+        <div>
+          <div class="card-footer">
+            <div>
+              <div class="hint" id="rollHint">Each roll uses <b>1 credit</b>. Tap the bottom-right of the card to roll.</div>
+              <div class="hint">Tap the top-left corner for today's distribution.</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="tiles" id="tiles"></div>
-
-  <div class="collapse-block" id="footerBlock">
+  <!-- Distribution view: swapped in over #gameView when the top-left
+       corner (.graph-zone) is tapped. Chart is built and refetched
+       from get_score_distribution() each time it's opened — see
+       renderDistributionChart(). -->
+  <div class="collapse-block" id="distributionBlock">
     <div>
-      <div class="card-footer">
-        <div class="hint" id="rollHint">Each roll uses <b>1 credit</b>. Tap the bottom-right of the card to roll.</div>
+      <div class="distribution-view">
+        <div class="distribution-header">
+          <span class="distribution-title">Today's roll distribution</span>
+          <span class="distribution-count" id="distributionCount"></span>
+        </div>
+        <div class="distribution-chart" id="distributionChart">
+          <div class="distribution-empty" id="distributionEmpty" style="display:none;">No rolls yet today.</div>
+        </div>
+        <div class="hint distribution-hint">Tap the top-left corner to go back.</div>
       </div>
     </div>
   </div>
@@ -1317,6 +1442,11 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
        old button effectively was: rollZone.disabled toggles it off
        while a roll is in progress or awaiting one-by-one taps. -->
   <div class="roll-zone" id="rollZone" role="button" aria-label="Roll"></div>
+
+  <!-- Tapping this swaps the card over to the score-distribution chart
+       (see .graph-zone / #distributionBlock above). Same invisible-zone
+       mechanism as .roll-zone, just the opposite corner. -->
+  <div class="graph-zone" id="graphZone" role="button" aria-label="View today's score distribution"></div>
 </div>
 
 <div class="scorepanel" id="scorepanel">
@@ -1425,6 +1555,10 @@ const scorepanelEl = document.getElementById('scorepanel');
 const rollPhraseEl = document.getElementById('rollPhrase');
 const tilesEl = document.getElementById('tiles');
 const rollZone = document.getElementById('rollZone');
+const graphZone = document.getElementById('graphZone');
+const distributionChartEl = document.getElementById('distributionChart');
+const distributionCountEl = document.getElementById('distributionCount');
+const distributionEmptyEl = document.getElementById('distributionEmpty');
 const totalScoreEl = document.getElementById('lastRollScore');
 const bestScoreEl = document.getElementById('bestScore');
 const percentilePlate = document.getElementById('percentilePlate');
@@ -1850,6 +1984,7 @@ function rollFailed(err, clearIntervals){
     : "Couldn't reach the server — try again.";
   spinning = false;
   rollZone.classList.remove('disabled');
+  graphZone.classList.remove('disabled');
   updateToggleLockState();
 }
 
@@ -1861,6 +1996,7 @@ async function roll(){
   }
   spinning = true;
   rollZone.classList.add('disabled');
+  graphZone.classList.add('disabled');
   updateToggleLockState();
 
   if(sequentialReveal){
@@ -1997,6 +2133,7 @@ function commitRollResult(word, matches, total, saved, credits){
 
   spinning = false;
   rollZone.classList.remove('disabled');
+  graphZone.classList.remove('disabled');
   updateToggleLockState();
 
   /* let the final score sit for a beat while still in the shrunk
@@ -2523,6 +2660,85 @@ openLeaderboardBtn.addEventListener('click', () => openModal('leaderboardModal')
 creditsDisplayEl.addEventListener('click', () => openModal('creditsModal'));
 
 rollZone.addEventListener('click', roll);
+
+/* ================= score distribution chart ================= */
+/* Renders get_score_distribution() (global, all players, resets daily
+   in sync with the leaderboard — see rolls_distribution.sql) as a bar
+   chart. Buckets are kept slim — targeting ~60 bars across whatever
+   score range comes back — so the histogram reads as close to a
+   continuous curve rather than a handful of chunky bars. Colors come
+   entirely from CSS (.dist-bar / .dist-axis-*), which read the same
+   --pink/--muted/--border variables the rest of the page uses, so the
+   chart follows light/dark mode automatically. */
+async function renderDistributionChart(){
+  distributionChartEl.querySelectorAll('svg').forEach(el => el.remove());
+  distributionEmptyEl.style.display = 'none';
+  distributionCountEl.textContent = 'Loading…';
+
+  const { data, error } = await sbClient.rpc('get_score_distribution');
+
+  if(error || !data || !data.length){
+    distributionCountEl.textContent = '';
+    distributionEmptyEl.style.display = 'block';
+    return;
+  }
+
+  const scores = data.map(d => d.score);
+  const minScore = Math.min(...scores);
+  const maxScore = Math.max(...scores);
+  const range = maxScore - minScore + 1;
+
+  const TARGET_BARS = 60;
+  const bucketWidth = Math.max(1, Math.ceil(range / TARGET_BARS));
+
+  const buckets = [];
+  for(let start = minScore; start <= maxScore; start += bucketWidth){
+    buckets.push({ start, end: Math.min(start + bucketWidth - 1, maxScore), frequency: 0 });
+  }
+  data.forEach(({ score, frequency }) => {
+    const idx = Math.min(buckets.length - 1, Math.floor((score - minScore) / bucketWidth));
+    buckets[idx].frequency += frequency;
+  });
+
+  const totalRolls = data.reduce((sum, d) => sum + d.frequency, 0);
+  distributionCountEl.textContent = `${totalRolls.toLocaleString()} roll${totalRolls === 1 ? '' : 's'} today`;
+
+  const maxFreq = Math.max(...buckets.map(b => b.frequency), 1);
+
+  const W = 600, H = 200;
+  const padLeft = 4, padRight = 4, padTop = 8, padBottom = 20;
+  const chartW = W - padLeft - padRight;
+  const chartH = H - padTop - padBottom;
+  const slot = chartW / buckets.length;
+  const barW = Math.max(1, slot - 1);
+
+  let bars = '';
+  buckets.forEach((b, i) => {
+    const barH = Math.max((b.frequency / maxFreq) * chartH, b.frequency > 0 ? 1.5 : 0);
+    const x = padLeft + i * slot;
+    const y = padTop + (chartH - barH);
+    const range = b.end > b.start ? `${b.start}–${b.end}` : `${b.start}`;
+    bars += `<rect class="dist-bar" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" height="${barH.toFixed(2)}" rx="1"><title>${range}: ${b.frequency}</title></rect>`;
+  });
+
+  const midScore = Math.round((minScore + maxScore) / 2);
+  const labelY = H - padBottom + 13;
+  const labels = `
+    <text class="dist-axis-text" x="${padLeft}" y="${labelY}" text-anchor="start">${minScore}</text>
+    <text class="dist-axis-text" x="${padLeft + chartW / 2}" y="${labelY}" text-anchor="middle">${midScore}</text>
+    <text class="dist-axis-text" x="${padLeft + chartW}" y="${labelY}" text-anchor="end">${maxScore}</text>
+  `;
+
+  const baseline = `<line class="dist-axis-line" x1="${padLeft}" y1="${padTop + chartH}" x2="${padLeft + chartW}" y2="${padTop + chartH}" />`;
+
+  const svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${baseline}${bars}${labels}</svg>`;
+  distributionChartEl.insertAdjacentHTML('beforeend', svg);
+}
+
+graphZone.addEventListener('click', () => {
+  const showingGraph = gameCardEl.classList.toggle('graph-mode');
+  if(showingGraph) renderDistributionChart();
+});
 
 /* ================= credit packs / payments ================= */
 const creditsBody = document.getElementById('creditsBody');
