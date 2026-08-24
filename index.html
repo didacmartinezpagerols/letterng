@@ -121,6 +121,15 @@ body{
   width: 100%;
   zoom: 0.9;
 }
+/* phone screens only: the site is already at 90% (zoom above) on every
+   device, but that's still not enough breathing room on narrow phones —
+   this scales it down by another 90% on top of that (net ~81%) without
+   touching how it looks on tablet/desktop. */
+@media (max-width: 600px){
+  #appRoot{
+    zoom: 0.81;
+  }
+}
 body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
 
 .topbar{
