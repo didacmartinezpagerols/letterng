@@ -43,6 +43,14 @@
   --rare-bg: #e8edff;     --rare-text: #3552e0;
   --legendary-bg: #fbe9ff; --legendary-text: #a729d6;
   --culture-bg: #e3edff;  --culture-text: #2e5cd8;
+
+  /* common badges' in-flight tint needs to be its own color, not the
+     grey --common-bg: on the light theme's pink surfaces, pale grey is
+     nearly invisible in transit. This pink tint is only used for the
+     traveling square (see RARITY_FLY_BG in the badge-flight JS) —
+     the settled badge card still uses --common-bg/--common-text as
+     normal. */
+  --common-fly-bg: #F2C2DA;
 }
 
 body.dark{
@@ -75,6 +83,10 @@ body.dark{
   --rare-bg: #161f3a;     --rare-text: #8da2ff;
   --legendary-bg: #2a1030; --legendary-text: #e08eff;
   --culture-bg: #142544;  --culture-text: #7ea6ff;
+
+  /* dark theme's card/tiles are already dark, so the plain grey
+     --common-bg reads fine in flight — no separate pink tint needed. */
+  --common-fly-bg: var(--common-bg);
 }
 
 /* the rules below were hardcoded literal colors (not theme variables)
@@ -313,6 +325,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
      line of hint text now. */
   padding: 34px 30px 16px;
   position: relative;
+  z-index: 10; /* above a badge card mid-flight (see .badge-card.flying / .badge-ghost) so it starts fully hidden behind the tile + card face and only becomes visible once it drops past the card's bottom edge */
   box-shadow: 0 30px 60px -20px rgba(0,0,0,0.35);
   transition: padding 0.45s cubic-bezier(.65,0,.35,1), box-shadow 0.45s ease;
 }
@@ -1470,8 +1483,22 @@ body.dark .word-content span{ color: #17181c; }
    rect, which only JS can measure. The class below just marks the
    in-flight state so it paints under settled badges + the plates. */
 .badge-card.flying{
-  z-index: 1; /* under .badge-card (2) and .plate/.breakdown-head (5) */
+  z-index: 1; /* under .badge-card (2), .plate/.breakdown-head (5), and .game-card (10) */
   will-change: transform, filter;
+}
+
+/* When a badge highlights more than one letter, every extra tile
+   beyond the first gets one of these — a plain blurred square that
+   travels the same path as the real badge card and converges into it
+   right as it lands (see dealGhostFromTile). Position:fixed + directly
+   animated left/top/width/height, since there's no shared flow parent
+   to express this via transform the way the real card's flight does. */
+.badge-ghost{
+  position: fixed;
+  z-index: 1; /* same layer as .badge-card.flying */
+  pointer-events: none;
+  border-radius: 12px;
+  filter: blur(7px);
 }
 .badge-card.announce.landed{
   animation: badgeAnnouncePulse 0.7s ease;
@@ -2141,14 +2168,14 @@ function badgeCardHTML(m, word, revealedIdxs){
    dark mode), so the traveling square reads as "that kind of badge"
    before it ever unblurs to reveal real content. */
 const RARITY_FLY_BG = {
-  common: 'var(--common-bg)',
+  common: 'var(--common-fly-bg)', /* pink-tinted on light theme so it reads against the pink/white surfaces — see :root */
   uncommon: 'var(--uncommon-bg)',
   rare: 'var(--rare-bg)',
   legendary: 'var(--legendary-bg)',
   culture: 'var(--culture-bg)'
 };
 const RARITY_FLY_GLOW = {
-  common: 'rgba(140,94,113,0.4)',
+  common: 'var(--glare-pink-glow)', /* theme-aware pink/purple glow, matches the pink tint above */
   uncommon: 'rgba(31,138,76,0.45)',
   rare: 'rgba(53,82,224,0.45)',
   legendary: 'rgba(167,41,214,0.45)',
@@ -2156,16 +2183,66 @@ const RARITY_FLY_GLOW = {
 };
 
 /* flight timing scales with however fast badges are currently being
-   dealt — same idea as letterFlashDuration()/scoreAnimDuration() above
-   — so Fast mode still feels snappy back-to-back and Slow/one-by-one
-   have room to actually watch each phase. */
+   dealt — same idea as letterFlashDuration()/scoreAnimDuration() above.
+   Deliberately slow across the board: what used to be Slow's pace is
+   now the FLOOR (Fast mode), escalating further from there, so every
+   mode gives the drop/converge/reveal sequence room to actually read. */
 function badgeFlightDurations(){
-  const mult = sequentialReveal ? 1.05 : (rollMode === 'slow' ? 0.95 : rollMode === 'medium' ? 0.68 : 0.4);
+  const mult = sequentialReveal ? 2.0 : (rollMode === 'slow' ? 1.7 : rollMode === 'medium' ? 1.3 : 0.95);
   return {
     drop:   Math.round(260 * mult),
     settle: Math.round(220 * mult),
     reveal: Math.round(220 * mult)
   };
+}
+
+/* creates one plain blurred square, fixed at `rect`, tinted to `rarity` */
+function makeGhostSquare(rect, rarity){
+  const el = document.createElement('div');
+  el.className = 'badge-ghost';
+  el.style.left = rect.left + 'px';
+  el.style.top = rect.top + 'px';
+  el.style.width = rect.width + 'px';
+  el.style.height = rect.height + 'px';
+  el.style.background = RARITY_FLY_BG[rarity] || RARITY_FLY_BG.common;
+  el.style.boxShadow = `0 0 16px ${RARITY_FLY_GLOW[rarity] || RARITY_FLY_GLOW.common}`;
+  document.body.appendChild(el);
+  return el;
+}
+
+/* When a badge highlights more than one letter, this runs once per
+   *extra* tile (index 1+) in parallel with the real card's own flight
+   (see dealBadgeCard) — a plain square that drops from that tile,
+   travels the same path, converges into the real card's exact box
+   right as it lands, then fades out, reading as multiple letters
+   feeding into the one badge. */
+async function dealGhostFromTile(tileIdx, rarity, finalRect, durations){
+  const tile = tileRefs[tileIdx];
+  if(!tile) return;
+  const tileRect = tile.getBoundingClientRect();
+  const ghost = makeGhostSquare(tileRect, rarity);
+  void ghost.offsetWidth; // force reflow so the starting position actually paints first
+
+  // phase 1 — straight down to the badge list's vertical level
+  ghost.style.transition = `top ${durations.drop}ms cubic-bezier(.32,.06,.18,1)`;
+  ghost.style.top = finalRect.top + 'px';
+  await wait(durations.drop);
+
+  // phase 2 — converge sideways + resize into the real card's exact box
+  ghost.style.transition = `left ${durations.settle}ms cubic-bezier(.2,.75,.25,1), width ${durations.settle}ms cubic-bezier(.2,.75,.25,1), height ${durations.settle}ms cubic-bezier(.2,.75,.25,1), border-radius ${durations.settle}ms ease`;
+  ghost.style.left = finalRect.left + 'px';
+  ghost.style.width = finalRect.width + 'px';
+  ghost.style.height = finalRect.height + 'px';
+  ghost.style.borderRadius = '14px';
+  await wait(durations.settle);
+
+  // phase 3 — fade out as it merges into the real card, which is
+  // unblurring in place at the same moment
+  const fade = Math.round(durations.reveal * 0.6);
+  ghost.style.transition = `opacity ${fade}ms ease`;
+  ghost.style.opacity = '0';
+  await wait(fade);
+  ghost.remove();
 }
 
 /* Deals one badge card in from the letter tile(s) it was earned from:
@@ -2181,6 +2258,11 @@ async function dealBadgeCard(card, m){
   const finalRect = card.getBoundingClientRect();
 
   flashLetterTiles(m);
+
+  // a badge that highlights more than one letter gets one extra
+  // blurred square per additional letter, all converging into this
+  // same card — see dealGhostFromTile
+  m.highlight.slice(1).forEach(idx => dealGhostFromTile(idx, m.rarity, finalRect, durations));
 
   if(!tileRect){
     // no origin tile to fly from (shouldn't normally happen) — just show it
