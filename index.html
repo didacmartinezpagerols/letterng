@@ -2412,11 +2412,39 @@ function appendBadgeCard(m, word, revealedIdxs){
   card.dataset.points = m.points;
   const insertBeforeEl = Array.from(badgeListEl.children)
     .find(el => parseFloat(el.dataset.points) < m.points);
+
+  /* record where every already-settled card currently sits — inserting
+     the new card below pushes some of them down in the layout instantly,
+     so we snapshot their "before" position here and, once inserted,
+     animate each one from its old spot to its new one (FLIP) instead of
+     letting the browser's own reflow just teleport them into place. */
+  const existingCards = Array.from(badgeListEl.children);
+  const beforeRects = new Map(existingCards.map(el => [el, el.getBoundingClientRect()]));
+
   if(insertBeforeEl){
     badgeListEl.insertBefore(card, insertBeforeEl);
   } else {
     badgeListEl.appendChild(card);
   }
+
+  const shiftMs = badgeFlightDurations().settle;
+  existingCards.forEach(el => {
+    const before = beforeRects.get(el);
+    const after = el.getBoundingClientRect();
+    const dy = before.top - after.top;
+    if(Math.abs(dy) < 0.5) return; // this card didn't actually move
+    el.style.transition = 'none';
+    el.style.transform = `translateY(${dy}px)`;
+    void el.offsetWidth; // force reflow so the offset paints before we animate it away
+    el.style.transition = `transform ${shiftMs}ms cubic-bezier(.2,.75,.25,1)`;
+    el.style.transform = '';
+    el.addEventListener('transitionend', function clearShift(e){
+      if(e.propertyName !== 'transform') return;
+      el.style.transition = '';
+      el.removeEventListener('transitionend', clearShift);
+    });
+  });
+
   dealBadgeCard(card, m);
 }
 
