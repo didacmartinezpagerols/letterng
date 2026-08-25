@@ -556,8 +556,29 @@ body.dark .word-content span{ color: #17181c; }
   font-size: 1.9rem;
   color: #6B3F52;
   position: relative;
+  overflow: hidden;
   box-shadow: 0 2px 0 rgba(0,0,0,0.12) inset, 0 6px 14px rgba(0,0,0,0.25);
   transition: transform 0.12s ease, color 0.2s ease;
+}
+/* letter shown inside each tile; kept as its own element so a spinning
+   tile can animate the letter (slide/blur) without moving the tile
+   itself. */
+.tile-letter{
+  display:inline-block;
+  will-change: transform, opacity, filter;
+}
+/* fast "roulette reel" spin: every 40ms a new random letter is dropped
+   in (see spinTileLetter) and the animation below is force-restarted,
+   so each letter blurs in from above and snaps to rest — repeated
+   quickly enough to read as a spinning slot reel rather than a flat
+   flicker. */
+@keyframes tileSpinTick{
+  0%   { transform: translateY(-55%); opacity: 0.2; filter: blur(3px); }
+  55%  { transform: translateY(8%); opacity: 1; filter: blur(0.5px); }
+  100% { transform: translateY(0); opacity: 1; filter: blur(0); }
+}
+.tile.spinning .tile-letter{
+  animation: tileSpinTick 0.16s cubic-bezier(.16,.85,.3,1);
 }
 .tile.spinning{ color: #D2A8BC; }
 .tile.locked{
@@ -1676,7 +1697,10 @@ const tileRefs = [];
 for(let i=0;i<5;i++){
   const t = document.createElement('div');
   t.className = 'tile';
-  t.textContent = '';
+  const letterEl = document.createElement('span');
+  letterEl.className = 'tile-letter';
+  t.appendChild(letterEl);
+  t.letterEl = letterEl;
   tilesEl.appendChild(t);
   tileRefs.push(t);
   t.addEventListener('click', () => revealTileByClick(i));
@@ -1705,9 +1729,6 @@ function setPillSize(size){
 async function expandPillToTiles(){
   // stop the idle random-word rotation — a real result is coming
   stopIdleWordCycle();
-  // a real roll is now underway, so the load-time animation override
-  // is done — later idle states should show the best word again
-  pageJustLoaded = false;
 
   // 1) fade the word text out — the fill stays on, pill unchanged
   wordContentEl.style.transitionDuration = ''; // back to the base 0.2s fade
@@ -1716,7 +1737,7 @@ async function expandPillToTiles(){
 
   // 2) clear the previous roll's letters while the tiles are still
   //    fully hidden, so nothing readable is revealed as they fade in
-  tileRefs.forEach(t => { t.textContent = ''; t.classList.remove('locked', 'letter-flash', 'awaiting-click', 'locking'); });
+  tileRefs.forEach(t => { t.letterEl.textContent = ''; t.classList.remove('locked', 'letter-flash', 'awaiting-click', 'locking'); });
 
   // 3) grow the pill and split it into tiles at the same time — width/
   //    height resize, fill fade-out, tiles fade-in, and the gap opening
@@ -1764,10 +1785,14 @@ function renderIdleWordGlow(word){
   ).join('');
 }
 
-/* keeps the load-time animation showing even for players who already
-   have a saved best word — cleared the moment a real roll starts, so
-   normal idle behavior (best word, if any) resumes after that. */
-let pageJustLoaded = true;
+/* the idle pill's word, once shown, either reflects the word this
+   player just rolled (session-only — resets on a page reload) or, if
+   they haven't rolled yet this session, cycles through random 5-letter
+   words. Both cases always use the glow effect — the pill should never
+   show a plain, unglowed word (e.g. a saved best-score word), even
+   after the tab was backgrounded and a session/profile refresh fires
+   updateIdlePillWord() again. */
+let lastRolledWord = '';
 
 let idleWordTimer = null;
 function stopIdleWordCycle(){
@@ -1792,22 +1817,17 @@ function startIdleWordCycle(){
   idleWordTimer = setInterval(idleWordTick, 5000);
 }
 
-/* the idle pill has no word of its own to show until the player has
-   actually rolled something this session — fall back to their saved
-   best word if they have one, otherwise keep the pill lively by
-   cycling through random 5-letter words, one every 5 seconds.
-   Exception: right when the page loads, everyone sees the glowing
-   scroll animation first — even players who already have a best
-   word — so the pill never opens on a static word. That override
-   only lasts until the player's first real roll (see
-   expandPillToTiles, which clears pageJustLoaded); after that, a
-   saved best word is shown as usual. */
+/* re-applies whichever of the two idle states is current — the last
+   rolled word (glowing, static) if this session has one, otherwise the
+   glowing random-word cycle. Safe to call any number of times (tab
+   refocus, auth/session refresh, etc.) since it never falls back to a
+   plain, unglowed word. */
 function updateIdlePillWord(){
   if(spinning || sequentialAwaitingClicks) return;
   stopIdleWordCycle();
-  if(bestWord && !pageJustLoaded){
+  if(lastRolledWord){
     wordContentEl.style.transitionDuration = ''; // back to the base 0.2s fade
-    wordSpanEl.textContent = bestWord;
+    renderIdleWordGlow(lastRolledWord);
     setPillSize(wordPillSize());
     wordContentEl.style.opacity = 1;
   } else {
@@ -1853,6 +1873,17 @@ function revealTileByClick(i){
    locks them in. They have no bearing on the actual outcome. */
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 function randLetter(){ return ALPHABET[Math.floor(Math.random()*26)]; }
+
+/* each spin tick swaps the letter AND restarts the tileSpinTick CSS
+   animation (style.animation reset via a forced reflow) so every new
+   letter tumbles in fresh instead of just snapping in place — reads as
+   a fast roulette/slot reel rather than a flat flicker. */
+function spinTileLetter(t){
+  t.letterEl.textContent = randLetter();
+  t.letterEl.style.animation = 'none';
+  void t.letterEl.offsetWidth; // force reflow so the animation restarts
+  t.letterEl.style.animation = '';
+}
 
 /* a big pool of common 5-letter words used purely to animate the idle
    pill (see startIdleWordCycle below) when the player has no best word
@@ -1939,7 +1970,7 @@ let pendingRollResult = null; // the { letters, matches, total, saved } fetched 
 let shownBadgeIdxs = new Set();
 
 function resetTilesVisual(){
-  tileRefs.forEach(t => { t.textContent = ''; t.classList.remove('spinning','locked','letter-flash','awaiting-click','locking'); });
+  tileRefs.forEach(t => { t.letterEl.textContent = ''; t.classList.remove('spinning','locked','letter-flash','awaiting-click','locking'); });
 }
 
 const darkModeToggle = document.getElementById('darkModeToggle');
@@ -1982,7 +2013,7 @@ updateToggleLockState();
 
 function lockTile(t, letter){
   t.classList.remove('spinning');
-  t.textContent = letter;
+  t.letterEl.textContent = letter;
   t.classList.add('locked');
   setTimeout(() => t.classList.remove('locked'), 450);
 }
@@ -2227,9 +2258,10 @@ async function rollFailed(err, clearIntervals){
   rollZone.classList.remove('disabled');
   graphZone.classList.remove('disabled');
   updateToggleLockState();
-  // the pill just showed the last word verbatim (no glow, base fade) as
-  // a placeholder during the shrink — hand it back to the normal idle
-  // state so the random-word glow/cycle (or best word) picks up again
+  // the pill just showed a leftover flicker glyph (no glow, base fade)
+  // as a placeholder during the shrink — hand it back to the normal
+  // idle state (last rolled word, or the random-word cycle) so it's
+  // never left showing that unglowed placeholder
   updateIdlePillWord();
 }
 
@@ -2264,7 +2296,7 @@ async function roll(){
     stageIntervals = tileRefs.map(t => {
       t.classList.remove('letter-flash', 'awaiting-click');
       t.classList.add('spinning');
-      return setInterval(() => { t.textContent = randLetter(); }, 40);
+      return setInterval(() => spinTileLetter(t), 40);
     });
     try{
       pendingRollResult = await fetchRollResult();
@@ -2293,7 +2325,7 @@ async function roll(){
     const flickerIvs = tileRefs.map(t => {
       t.classList.remove('letter-flash');
       t.classList.add('spinning');
-      return setInterval(() => { t.textContent = randLetter(); }, 40);
+      return setInterval(() => spinTileLetter(t), 40);
     });
     let result;
     try{
@@ -2388,6 +2420,7 @@ function commitRollResult(word, matches, total, saved, credits){
      to normal. Safe to call even for sequential-reveal rolls, which
      never entered the collapsed state to begin with. */
   setTimeout(() => {
+    lastRolledWord = word;
     shrinkPillToWord(word, true);
     exitRollFocus();
   }, 500);
