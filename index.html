@@ -597,6 +597,18 @@ body.dark .word-content span{ color: #17181c; }
 .tile.locked{
   box-shadow: 0 0 0 2px var(--pink), 0 6px 14px var(--pink-glow);
 }
+/* the letter itself glows the moment it's revealed — a quick flare
+   that fades out over the same window .locked stays applied, so the
+   glow always finishes right as the tile settles into its resting
+   state. */
+@keyframes tileLetterGlow{
+  0%   { text-shadow: 0 0 0px transparent; }
+  25%  { text-shadow: 0 0 10px var(--pink), 0 0 22px var(--pink-glow), 0 0 34px var(--pink-glow); }
+  100% { text-shadow: 0 0 0px transparent; }
+}
+.tile.locked .tile-letter{
+  animation: tileLetterGlow 0.45s ease-out;
+}
 /* one-by-one mode: once the roll's result is fetched, every not-yet-
    revealed tile becomes clickable — tapping it locks in that tile's
    letter, standing in for the roll button (which is hidden away along
