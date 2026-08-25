@@ -2204,7 +2204,7 @@ function badgeFlightDurations(){
   return {
     drop:   Math.round(260 * mult),
     settle: Math.round(220 * mult),
-    reveal: Math.round(220 * mult)
+    reveal: Math.round(380 * mult) /* was 220 — the blurred-square-to-badge handoff needs more time on screen or it reads as a snap rather than a fade */
   };
 }
 
@@ -2239,14 +2239,14 @@ function badgeCrossoverSplit(startTop, endTop, dropDuration){
   const titleEl = document.querySelector('.breakdown-title');
   const titleRect = titleEl ? titleEl.getBoundingClientRect() : null;
   if(!titleRect || endTop === startTop){
-    return { crossTop: endTop, squareMs: dropDuration };
+    return { crossTop: endTop, squareMs: dropDuration, frac: 1 };
   }
   const crossTop = Math.min(Math.max(titleRect.bottom, Math.min(startTop, endTop)), Math.max(startTop, endTop));
   const frac = Math.min(1, Math.max(0, (crossTop - startTop) / (endTop - startTop)));
-  return { crossTop, squareMs: Math.round(dropDuration * frac) };
+  return { crossTop, squareMs: Math.round(dropDuration * frac), frac };
 }
 
-async function dealGhostFromTile(tileIdx, rarity, finalRect, durations){
+async function dealGhostFromTile(tileIdx, rarity, finalRect, durations, crossing){
   const tile = tileRefs[tileIdx];
   if(!tile) return;
   const tileRect = tile.getBoundingClientRect();
@@ -2254,8 +2254,15 @@ async function dealGhostFromTile(tileIdx, rarity, finalRect, durations){
   void ghost.offsetWidth; // force reflow so the starting position actually paints first
 
   // phase 1 — straight down, still a plain square, only until it clears
-  // the "BADGE BREAKDOWN" title
-  const { crossTop, squareMs } = badgeCrossoverSplit(tileRect.top, finalRect.top, durations.drop);
+  // the "BADGE BREAKDOWN" title. Uses the SAME crossing fraction/timing
+  // the main card's own flight is using (passed in as `crossing`, computed
+  // once in dealBadgeCard) rather than recalculating its own from this
+  // tile's rect — that guarantees every letter's shadow launches at the
+  // same instant and crosses the line at the same instant too, so their
+  // horizontal spacing stays locked to the tiles' real spacing the whole
+  // time they're falling, instead of drifting out of step with each other.
+  const squareMs = crossing.squareMs;
+  const crossTop = tileRect.top + (finalRect.top - tileRect.top) * crossing.frac;
   if(squareMs > 0){
     ghost.style.transition = `top ${squareMs}ms cubic-bezier(.32,.06,.18,1)`;
     ghost.style.top = crossTop + 'px';
@@ -2297,10 +2304,23 @@ async function dealBadgeCard(card, m){
 
   flashLetterTiles(m);
 
+  // Work out the drop/crossing timing once, from the origin tile, and
+  // hand that same timing to every extra tile's ghost square below —
+  // so if a badge highlights several letters, all of their shadows
+  // drop and cross the "BADGE BREAKDOWN" line at exactly the same
+  // moments as each other and as the main card, instead of each piece
+  // computing its own slightly-different timing. That keeps every
+  // piece's horizontal position locked to its real tile position for
+  // as long as it's simultaneous with the others, so the gaps between
+  // them read as the actual letter spacing rather than drifting apart.
+  const crossing = tileRect
+    ? badgeCrossoverSplit(tileRect.top, finalRect.top, durations.drop)
+    : { crossTop: finalRect.top, squareMs: durations.drop, frac: 1 };
+
   // a badge that highlights more than one letter gets one extra
   // blurred square per additional letter, all converging into this
   // same card — see dealGhostFromTile
-  m.highlight.slice(1).forEach(idx => dealGhostFromTile(idx, m.rarity, finalRect, durations));
+  m.highlight.slice(1).forEach(idx => dealGhostFromTile(idx, m.rarity, finalRect, durations, crossing));
 
   if(!tileRect){
     // no origin tile to fly from (shouldn't normally happen) — just show it
@@ -2329,8 +2349,9 @@ async function dealBadgeCard(card, m){
   void card.offsetWidth; // force reflow so phase 0 actually paints before phase 1 starts
 
   // phase 1 — straight down, same x, still a plain square, only until
-  // it clears the "BADGE BREAKDOWN" title
-  const { crossTop, squareMs } = badgeCrossoverSplit(tileRect.top, finalRect.top, durations.drop);
+  // it clears the "BADGE BREAKDOWN" title — timing shared with any
+  // extra tiles' ghosts (see `crossing` above) so they all move in step
+  const { crossTop, squareMs } = crossing;
   const dyAtCross = crossTop - finalRect.top; // exact translateY that lines the square's top up with crossTop
   if(squareMs > 0){
     card.style.transition = `transform ${squareMs}ms cubic-bezier(.32,.06,.18,1)`;
@@ -2350,18 +2371,25 @@ async function dealBadgeCard(card, m){
   // phase 3 — unblur + fade the tint back to the badge's real surface
   // color/border, revealing its actual content; the score bumps the
   // moment it lands rather than waiting on the unblur to finish.
+  // Uses a gentle ease-out curve (instead of the generic "ease") so the
+  // blur/tint dissolve gradually rather than snapping away, and the
+  // content's fade-in is given a small head-start delay so it lands
+  // just after the card itself starts clearing — reading as one soft
+  // handoff rather than two things switching at once.
   card.classList.remove('flying');
   bumpRunningScore(m.points);
-  card.style.transition = `filter ${durations.reveal}ms ease, background ${durations.reveal}ms ease, box-shadow ${durations.reveal}ms ease, border-color ${durations.reveal}ms ease`;
+  const revealEase = 'cubic-bezier(.22,.61,.36,1)';
+  const contentDelay = Math.round(durations.reveal * 0.18);
+  card.style.transition = `filter ${durations.reveal}ms ${revealEase}, background ${durations.reveal}ms ${revealEase}, box-shadow ${durations.reveal}ms ${revealEase}, border-color ${durations.reveal}ms ${revealEase}`;
   card.style.filter = 'blur(0px)';
   card.style.background = '';
   card.style.boxShadow = '';
   card.style.borderColor = '';
   content.forEach(n => {
-    n.style.transition = `opacity ${durations.reveal}ms ease`;
+    n.style.transition = `opacity ${durations.reveal}ms ${revealEase} ${contentDelay}ms`;
     n.style.opacity = '1';
   });
-  await wait(durations.reveal);
+  await wait(durations.reveal + contentDelay);
 
   card.style.transition = '';
   card.style.transform = '';
