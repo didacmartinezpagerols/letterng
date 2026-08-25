@@ -1705,6 +1705,9 @@ function setPillSize(size){
 async function expandPillToTiles(){
   // stop the idle random-word rotation — a real result is coming
   stopIdleWordCycle();
+  // a real roll is now underway, so the load-time animation override
+  // is done — later idle states should show the best word again
+  pageJustLoaded = false;
 
   // 1) fade the word text out — the fill stays on, pill unchanged
   wordContentEl.style.transitionDuration = ''; // back to the base 0.2s fade
@@ -1725,10 +1728,18 @@ async function expandPillToTiles(){
   await pillWait(450);
 }
 
-async function shrinkPillToWord(word){
+async function shrinkPillToWord(word, glow){
   // mirror of expandPillToTiles: shrink + merge back at the same time
   wordContentEl.style.transitionDuration = ''; // back to the base 0.2s fade
-  wordSpanEl.textContent = word;
+  // a just-rolled word (glow=true) gets the same letter-by-letter glow
+  // as the idle animation, and — unlike the idle cycle — just sits
+  // there afterward: nothing re-triggers it until the next roll starts
+  // (expandPillToTiles clears the tiles/word for the next result).
+  if(glow){
+    renderIdleWordGlow(word);
+  } else {
+    wordSpanEl.textContent = word;
+  }
   tilesEl.style.opacity = 0;
   tilesEl.style.gap = '0px';
   pillFillEl.style.opacity = 1;
@@ -1752,6 +1763,11 @@ function renderIdleWordGlow(word){
     `<span class="word-tile-letter-soft" style="animation-delay:${(i * 0.09).toFixed(2)}s">${l}</span>`
   ).join('');
 }
+
+/* keeps the load-time animation showing even for players who already
+   have a saved best word — cleared the moment a real roll starts, so
+   normal idle behavior (best word, if any) resumes after that. */
+let pageJustLoaded = true;
 
 let idleWordTimer = null;
 function stopIdleWordCycle(){
@@ -1779,11 +1795,17 @@ function startIdleWordCycle(){
 /* the idle pill has no word of its own to show until the player has
    actually rolled something this session — fall back to their saved
    best word if they have one, otherwise keep the pill lively by
-   cycling through random 5-letter words, one every 5 seconds. */
+   cycling through random 5-letter words, one every 5 seconds.
+   Exception: right when the page loads, everyone sees the glowing
+   scroll animation first — even players who already have a best
+   word — so the pill never opens on a static word. That override
+   only lasts until the player's first real roll (see
+   expandPillToTiles, which clears pageJustLoaded); after that, a
+   saved best word is shown as usual. */
 function updateIdlePillWord(){
   if(spinning || sequentialAwaitingClicks) return;
   stopIdleWordCycle();
-  if(bestWord){
+  if(bestWord && !pageJustLoaded){
     wordContentEl.style.transitionDuration = ''; // back to the base 0.2s fade
     wordSpanEl.textContent = bestWord;
     setPillSize(wordPillSize());
@@ -2366,7 +2388,7 @@ function commitRollResult(word, matches, total, saved, credits){
      to normal. Safe to call even for sequential-reveal rolls, which
      never entered the collapsed state to begin with. */
   setTimeout(() => {
-    shrinkPillToWord(word);
+    shrinkPillToWord(word, true);
     exitRollFocus();
   }, 500);
 }
