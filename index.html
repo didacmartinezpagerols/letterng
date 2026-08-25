@@ -706,6 +706,8 @@ body.dark .word-content span{ color: #17181c; }
 }
 
 .plate{
+  position: relative;
+  z-index: 5; /* keeps score/percentile/best-score plates above a badge card that's mid-flight (see .badge-card.flying) */
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: 14px;
@@ -816,6 +818,8 @@ body.dark .word-content span{ color: #17181c; }
   margin-top: 36px;
 }
 .breakdown-head{
+  position: relative;
+  z-index: 5; /* keeps the "BADGE BREAKDOWN" title/sub above a badge card that's mid-flight (see .badge-card.flying) */
   text-align:center;
   margin-bottom: 16px;
 }
@@ -833,6 +837,8 @@ body.dark .word-content span{ color: #17181c; }
 }
 
 .badge-card{
+  position: relative;
+  z-index: 2; /* sits above any badge still mid-flight (see .badge-card.flying) */
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: 14px;
@@ -1449,17 +1455,25 @@ body.dark .word-content span{ color: #17181c; }
   animation: flashHighscore 2.2s ease-in-out;
 }
 
-/* ---------- staggered badge reveal ---------- */
-.badge-card{
-  opacity: 0;
-  transform: translateY(8px) scale(0.98);
-  transition: opacity 0.4s ease, transform 0.4s ease;
+/* ---------- badge reveal: drops in from its earned letter ----------
+   A badge card is inserted into its real (sorted) slot in the list up
+   front, but starts pinned to the size/position of the tile it was
+   earned from — blurred, tinted to its rarity, content hidden. It then:
+     1) drops straight down, still blurred/tinted, passing BEHIND the
+        score plate and the "BADGE BREAKDOWN" heading (see the z-index
+        on .plate / .breakdown-head above vs. .badge-card.flying below)
+     2) slides sideways into its slot and grows to the card's full size
+     3) unblurs, its tint fades back to the normal card surface, and
+        its real content (header/desc/mini-tiles) fades in
+   All of it driven from JS (see dealBadgeCard / appendBadgeCard) since
+   it needs each card's actual on-screen rect and its origin tile's
+   rect, which only JS can measure. The class below just marks the
+   in-flight state so it paints under settled badges + the plates. */
+.badge-card.flying{
+  z-index: 1; /* under .badge-card (2) and .plate/.breakdown-head (5) */
+  will-change: transform, filter;
 }
-.badge-card.show{
-  opacity: 1;
-  transform: translateY(0) scale(1);
-}
-.badge-card.announce.show{
+.badge-card.announce.landed{
   animation: badgeAnnouncePulse 0.7s ease;
 }
 @keyframes badgeAnnouncePulse{
@@ -2122,10 +2136,116 @@ function badgeCardHTML(m, word, revealedIdxs){
     </div>`;
 }
 
+/* light "in flight" tint per rarity — reuses the same pale backgrounds
+   the rarity pills already sit on (theme-aware: these vars flip in
+   dark mode), so the traveling square reads as "that kind of badge"
+   before it ever unblurs to reveal real content. */
+const RARITY_FLY_BG = {
+  common: 'var(--common-bg)',
+  uncommon: 'var(--uncommon-bg)',
+  rare: 'var(--rare-bg)',
+  legendary: 'var(--legendary-bg)',
+  culture: 'var(--culture-bg)'
+};
+const RARITY_FLY_GLOW = {
+  common: 'rgba(140,94,113,0.4)',
+  uncommon: 'rgba(31,138,76,0.45)',
+  rare: 'rgba(53,82,224,0.45)',
+  legendary: 'rgba(167,41,214,0.45)',
+  culture: 'rgba(46,92,216,0.45)'
+};
+
+/* flight timing scales with however fast badges are currently being
+   dealt — same idea as letterFlashDuration()/scoreAnimDuration() above
+   — so Fast mode still feels snappy back-to-back and Slow/one-by-one
+   have room to actually watch each phase. */
+function badgeFlightDurations(){
+  const mult = sequentialReveal ? 1.05 : (rollMode === 'slow' ? 0.95 : rollMode === 'medium' ? 0.68 : 0.4);
+  return {
+    drop:   Math.round(260 * mult),
+    settle: Math.round(220 * mult),
+    reveal: Math.round(220 * mult)
+  };
+}
+
+/* Deals one badge card in from the letter tile(s) it was earned from:
+   flash the source letter(s), drop a blurred/tinted, tile-sized square
+   straight down from that letter — behind the score plate and the
+   "BADGE BREAKDOWN" heading — then once it's at the badge list's
+   level, slide it sideways into its slot, grow it to full size, and
+   unblur to reveal the real badge content. */
+async function dealBadgeCard(card, m){
+  const durations = badgeFlightDurations();
+  const originTile = tileRefs[m.highlight[0]];
+  const tileRect = originTile ? originTile.getBoundingClientRect() : null;
+  const finalRect = card.getBoundingClientRect();
+
+  flashLetterTiles(m);
+
+  if(!tileRect){
+    // no origin tile to fly from (shouldn't normally happen) — just show it
+    card.classList.remove('flying');
+    bumpRunningScore(m.points);
+    return;
+  }
+
+  const dx = (tileRect.left + tileRect.width / 2) - (finalRect.left + finalRect.width / 2);
+  const dy = tileRect.top - finalRect.top;
+  const scaleX = Math.max(0.16, tileRect.width / finalRect.width);
+  const scaleY = Math.max(0.4, tileRect.height / finalRect.height);
+
+  const content = card.querySelectorAll('.badge-header, .badge-desc, .mini-tiles');
+
+  // phase 0 — snap into place at the letter's position/size, blurred,
+  // content hidden, tinted a light tone of the badge's rarity color.
+  card.style.transition = 'none';
+  card.style.transformOrigin = 'center top';
+  card.style.transform = `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`;
+  card.style.filter = 'blur(7px)';
+  card.style.background = RARITY_FLY_BG[m.rarity] || RARITY_FLY_BG.common;
+  card.style.boxShadow = `0 0 16px ${RARITY_FLY_GLOW[m.rarity] || RARITY_FLY_GLOW.common}`;
+  card.style.borderColor = 'transparent';
+  content.forEach(n => n.style.opacity = '0');
+  void card.offsetWidth; // force reflow so phase 0 actually paints before phase 1 starts
+
+  // phase 1 — straight down, same x, same size, still blurred + tinted
+  card.style.transition = `transform ${durations.drop}ms cubic-bezier(.32,.06,.18,1)`;
+  card.style.transform = `translate(${dx}px, 0px) scale(${scaleX}, ${scaleY})`;
+  await wait(durations.drop);
+
+  // phase 2 — slide sideways into the slot + expand to full card size
+  card.style.transition = `transform ${durations.settle}ms cubic-bezier(.2,.75,.25,1)`;
+  card.style.transform = 'translate(0px, 0px) scale(1, 1)';
+  await wait(durations.settle);
+
+  // phase 3 — unblur + fade the tint back to the badge's real surface
+  // color/border, revealing its actual content; the score bumps the
+  // moment it lands rather than waiting on the unblur to finish.
+  card.classList.remove('flying');
+  bumpRunningScore(m.points);
+  card.style.transition = `filter ${durations.reveal}ms ease, background ${durations.reveal}ms ease, box-shadow ${durations.reveal}ms ease, border-color ${durations.reveal}ms ease`;
+  card.style.filter = 'blur(0px)';
+  card.style.background = '';
+  card.style.boxShadow = '';
+  card.style.borderColor = '';
+  content.forEach(n => {
+    n.style.transition = `opacity ${durations.reveal}ms ease`;
+    n.style.opacity = '1';
+  });
+  await wait(durations.reveal);
+
+  card.style.transition = '';
+  card.style.transform = '';
+  card.classList.add('landed'); // triggers the announce pulse for rare+ badges, see CSS
+}
+
+function wait(ms){ return new Promise(r => setTimeout(r, ms)); }
+
 function appendBadgeCard(m, word, revealedIdxs){
   const wrap = document.createElement('div');
   wrap.innerHTML = badgeCardHTML(m, word, revealedIdxs).trim();
   const card = wrap.firstElementChild;
+  card.classList.add('flying');
   /* the list is always kept sorted highest-points-first: find the first
      existing card worth less than this one and insert right above it,
      pushing it (and everything below it) down. In one-by-one mode
@@ -2140,9 +2260,7 @@ function appendBadgeCard(m, word, revealedIdxs){
   } else {
     badgeListEl.appendChild(card);
   }
-  requestAnimationFrame(() => card.classList.add('show'));
-  bumpRunningScore(m.points);
-  flashLetterTiles(m);
+  dealBadgeCard(card, m);
 }
 
 /* schedules a small stagger between newly-eligible badges so they still
