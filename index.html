@@ -50,7 +50,7 @@
      traveling square (see RARITY_FLY_BG in the badge-flight JS) —
      the settled badge card still uses --common-bg/--common-text as
      normal. */
-  --common-fly-bg: #F2C2DA;
+  --common-fly-bg: #F7DCEA;
 }
 
 body.dark{
@@ -1498,7 +1498,7 @@ body.dark .word-content span{ color: #17181c; }
   z-index: 1; /* same layer as .badge-card.flying */
   pointer-events: none;
   border-radius: 12px;
-  filter: blur(7px);
+  filter: blur(13px);
 }
 .badge-card.announce.landed{
   animation: badgeAnnouncePulse 0.7s ease;
@@ -2283,7 +2283,7 @@ async function dealBadgeCard(card, m){
   card.style.transition = 'none';
   card.style.transformOrigin = 'center top';
   card.style.transform = `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`;
-  card.style.filter = 'blur(7px)';
+  card.style.filter = 'blur(13px)';
   card.style.background = RARITY_FLY_BG[m.rarity] || RARITY_FLY_BG.common;
   card.style.boxShadow = `0 0 16px ${RARITY_FLY_GLOW[m.rarity] || RARITY_FLY_GLOW.common}`;
   card.style.borderColor = 'transparent';
