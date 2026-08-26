@@ -329,6 +329,59 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   box-shadow: 0 30px 60px -20px rgba(0,0,0,0.35);
   transition: padding 0.45s cubic-bezier(.65,0,.35,1), box-shadow 0.45s ease;
 }
+/* iPadOS-style corner hints — a quiet echo of the card's own 26px
+   corner radius, floating just OUTSIDE the true edge rather than
+   sitting inside it. Each hint is a 40x40 box positioned so that the
+   card's own corner-arc center lands exactly at one of the box's
+   corners (0,0 for the bottom-right hint, 40,40 for the top-left one);
+   drawing a radius-32 arc (bigger than the card's own 26) about that
+   same center produces a curve that's concentric with — and sits just
+   beyond — the card's rounded edge. Only a short ~50° slice centered
+   on the diagonal is drawn (not the full quarter-circle), so it reads
+   as a stubby corner tick rather than a full nested corner outline.
+   Purely decorative: the visible <path> has pointer-events:none so it
+   never steals taps from .roll-zone / .graph-zone underneath. A second,
+   invisible, fat-stroked path layered on top of it (.corner-hint-hit)
+   is what actually catches hover, since the thin visible line alone is
+   too fiddly a target — its own pointer-events:stroke lets it pick up
+   hover without blocking clicks anywhere off the line itself. */
+.corner-hint{
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+  z-index: 11;
+}
+.corner-hint-br{ right: -14px; bottom: -14px; }
+.corner-hint-tl{ top: -14px; left: -14px; }
+.corner-hint-hit{
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+}
+.corner-hint-line{
+  fill: none;
+  stroke: rgba(170,163,168,0.3);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  transition: stroke-width 0.15s ease;
+}
+body.dark .corner-hint-line{
+  stroke: rgba(255,255,255,0.12);
+}
+/* thickens when the mouse is over the curve itself (via the fat
+   invisible hit-path) OR anywhere over the matching tap zone
+   (.roll-zone for bottom-right / .graph-zone for top-left) —
+   whichever the mouse actually lands on, the same corner responds. */
+.corner-hint-br:has(.corner-hint-hit:hover) .corner-hint-line,
+.game-card:has(.roll-zone:hover) .corner-hint-br .corner-hint-line{
+  stroke-width: 4.6;
+}
+.corner-hint-tl:has(.corner-hint-hit:hover) .corner-hint-line,
+.game-card:has(.graph-zone:hover) .corner-hint-tl .corner-hint-line{
+  stroke-width: 4.6;
+}
 /* while rolling / dealing badges: the card shrinks down to hug just the
    tiles, and the title/subtitle/footer inside it fade + collapse away
    (see .collapse-block below) so the roll itself feels like the moment.
@@ -766,8 +819,10 @@ body.dark .word-content span{ color: #17181c; }
 }
 
 /* ---------- main score plate: larger number, tight box, no outline glow ----------
-   The digits still keep the leaderboard-style letter glare (text-shadow);
-   the plate itself uses the same quiet border as the other plates. */
+   The digits used to keep a permanent letter-glare text-shadow; now the
+   glow only flashes on while the number is actually updating — riding
+   the same .bump class/timing that already fires on every badge landing
+   (see bumpRunningScore) — then fades back to plain, unglowed digits. */
 .score-plate{
   padding: 8px 16px 10px;
   min-width: 0;
@@ -777,7 +832,14 @@ body.dark .word-content span{ color: #17181c; }
 .score-plate .plate-num{
   font-size: 3.4rem;
   line-height: 1;
-  text-shadow: 0 0 20px var(--glare-pink-glow), 0 0 8px var(--glare-pink-light);
+}
+.score-plate .plate-num.bump{
+  animation: scoreBump 0.36s cubic-bezier(.34,1.56,.64,1), scoreGlowFlash 0.7s ease-out;
+}
+@keyframes scoreGlowFlash{
+  0%   { text-shadow: 0 0 0px transparent; }
+  30%  { text-shadow: 0 0 20px var(--glare-pink-glow), 0 0 8px var(--glare-pink-light); }
+  100% { text-shadow: 0 0 0px transparent; }
 }
 .score-plate .plate-label{
   margin-top: 4px;
@@ -834,6 +896,17 @@ body.dark .word-content span{ color: #17181c; }
 .percentile-plate .plate-num{
   font-size: 1.15rem;
   text-transform: lowercase;
+}
+/* brief highlight the moment the percentile plate appears (see
+   showPercentilePlate) — settles back into the plate's normal quiet
+   border/shadow (matching .plate) once the flash finishes. */
+.percentile-plate.just-appeared{
+  animation: percentileAppearGlow 1s ease-out;
+}
+@keyframes percentileAppearGlow{
+  0%   { border-color: var(--border); box-shadow: 0 1px 0 rgba(0,0,0,0.02); }
+  25%  { border-color: var(--glare-pink); box-shadow: 0 0 16px var(--glare-pink-glow), 0 0 4px var(--glare-pink-light); }
+  100% { border-color: var(--border); box-shadow: 0 1px 0 rgba(0,0,0,0.02); }
 }
 
 /* ---------- badge breakdown ---------- */
@@ -1617,6 +1690,20 @@ body.dark .word-content span{ color: #17181c; }
        (see .graph-zone / #distributionBlock above). Same invisible-zone
        mechanism as .roll-zone, just the opposite corner. -->
   <div class="graph-zone" id="graphZone" role="button" aria-label="View today's score distribution"></div>
+
+  <!-- Purely decorative iPadOS-style corner hints (see .corner-hint above) —
+       concentric with the card's own 26px corner radius, floating just
+       outside it. Bottom-right pairs with .roll-zone, top-left with
+       .graph-zone; each hint's hover state is wired to both its own
+       curve and its matching zone (see the :has() rules above). -->
+  <svg class="corner-hint corner-hint-br" viewBox="0 0 40 40" aria-hidden="true">
+    <path class="corner-hint-hit" d="M 30.07 10.94 A 32 32 0 0 1 10.94 30.07" />
+    <path class="corner-hint-line" d="M 30.07 10.94 A 32 32 0 0 1 10.94 30.07" />
+  </svg>
+  <svg class="corner-hint corner-hint-tl" viewBox="0 0 40 40" aria-hidden="true">
+    <path class="corner-hint-hit" d="M 9.93 29.06 A 32 32 0 0 1 29.06 9.93" />
+    <path class="corner-hint-line" d="M 9.93 29.06 A 32 32 0 0 1 29.06 9.93" />
+  </svg>
 </div>
 
 <div class="scorepanel" id="scorepanel">
@@ -1627,7 +1714,12 @@ body.dark .word-content span{ color: #17181c; }
   <div class="plate percentile-plate" id="percentilePlate" style="display:none;">
     <div class="plate-num" id="percentileText">—</div>
   </div>
-  <div class="best-score-collapse" id="bestScoreCollapse">
+  <!-- "all time best score" box removed from view. The elements are kept
+       (just hidden) rather than deleted from the DOM, since bestScoreEl /
+       bestWordTilesEl are still written to on every roll (see
+       commitRollResult / updateBestWordDisplay) — removing them outright
+       would throw on every roll. -->
+  <div class="best-score-collapse" id="bestScoreCollapse" style="display:none;">
     <div>
       <div class="plate best-score-plate" id="bestScorePlate">
         <div class="plate-num" id="bestScore">0</div>
@@ -1905,6 +1997,7 @@ function revealTileByClick(i){
     revealedTileIdxs.add(i);
     const revealDelay = revealEligibleBadges();
     if(revealedTileIdxs.size === 5){
+      hideRollPhrase(); // word is entirely rolled — the phrase should stop glowing now, not wait for badges/score to finish landing
       sequentialAwaitingClicks = false;
       const word = stageLetters.join('');
       const saved = pendingRollResult.saved;
@@ -2642,7 +2735,10 @@ async function roll(){
       setTimeout(() => {
         clearInterval(flickerIvs[i]);
         lockTile(t, result.letters[i]);
-        if(i === 4) finishRoll(result.letters, result.matches, result.total, result.saved, result.credits);
+        if(i === 4){
+          hideRollPhrase(); // word is entirely rolled — the phrase should stop glowing now, not wait for badges/score to finish landing
+          finishRoll(result.letters, result.matches, result.total, result.saved, result.credits);
+        }
       }, delays[i]);
     });
   }
@@ -2705,7 +2801,11 @@ function commitRollResult(word, matches, total, saved, credits){
     if(total > (currentProfile.best_score || 0)) currentProfile.best_word = word;
     currentProfile.best_score = Math.max(currentProfile.best_score || 0, total);
   }
-  updatePercentileBox(total);
+  /* delayed on purpose — letting the score/badges settle first makes
+     the percentile box read as a follow-up reveal rather than popping
+     in at the same instant as everything else (see showPercentilePlate,
+     which gives it a brief glow when it lands). */
+  setTimeout(() => updatePercentileBox(total), 700);
 
   if(isNewHighscore){
     gameCardEl.classList.remove('highscore-flash');
@@ -3236,11 +3336,23 @@ async function updatePercentileBox(score){
       label = `bottom ${pct}%`;
     }
     percentileText.textContent = label;
-    percentilePlate.style.display = '';
+    showPercentilePlate();
   } catch(err){
     console.error('updatePercentileBox failed', err);
     percentilePlate.style.display = 'none';
   }
+}
+
+/* reveals the percentile plate and gives it a brief glow (see
+   .percentile-plate.just-appeared / percentileAppearGlow) so its
+   appearance actually reads as new information landing, not just a
+   box that was there all along. The reflow trick lets the glow
+   restart cleanly even if the plate somehow re-shows back-to-back. */
+function showPercentilePlate(){
+  percentilePlate.style.display = '';
+  percentilePlate.classList.remove('just-appeared');
+  void percentilePlate.offsetWidth;
+  percentilePlate.classList.add('just-appeared');
 }
 
 authBtn.addEventListener('click', () => openModal('authModal'));
