@@ -630,7 +630,7 @@ body.dark .word-content span{ color: #17181c; }
   opacity: 0;
   pointer-events: none;
   z-index: 5;
-  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(.34,1.56,.64,1);
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(.34,1.56,.64,1), text-shadow 0.6s ease;
 }
 .roll-phrase.show{
   opacity: 1;
@@ -640,6 +640,15 @@ body.dark .word-content span{ color: #17181c; }
 @keyframes rollPhrasePulse{
   0%, 100% { text-shadow: 0 0 18px var(--glare-pink-glow), 0 0 36px var(--glare-pink-glow); }
   50%      { text-shadow: 0 0 10px var(--glare-pink-glow), 0 0 22px var(--glare-pink-glow); }
+}
+/* once the first letter locks in, the phrase has already done its
+   "something's happening" job — it settles: the pulse stops and the
+   glow drops away, but it stays fully visible/readable (opacity
+   untouched) right up until the word itself is complete, at which
+   point hideRollPhrase() takes it away entirely. */
+.roll-phrase.show.settled{
+  animation: none;
+  text-shadow: none;
 }
 
 .tile{
@@ -2033,6 +2042,9 @@ function revealTileByClick(i){
     lockTile(t, stageLetters[i]);
     revealedTileIdxs.add(i);
     const revealDelay = revealEligibleBadges();
+    if(revealedTileIdxs.size === 1){
+      settleRollPhrase(); // first letter's readable now — glow's done its job
+    }
     if(revealedTileIdxs.size === 5){
       hideRollPhrase(); // word is entirely rolled — the phrase should stop glowing now, not wait for badges/score to finish landing
       hideCornerHints(); // same moment — the curves finish fading out now that the word is readable
@@ -2651,7 +2663,15 @@ function pickRollPhrase(){
 }
 function showRollPhrase(){
   rollPhraseEl.textContent = pickRollPhrase();
+  rollPhraseEl.classList.remove('settled');
   rollPhraseEl.classList.add('show');
+}
+/* called once the first letter locks in — see .roll-phrase.show.settled
+   in CSS. Leaves the phrase fully visible/readable, just drops the
+   pulsing glow, since by then it's already served its purpose of
+   signaling "something's happening" and the tiles are the focus. */
+function settleRollPhrase(){
+  rollPhraseEl.classList.add('settled');
 }
 /* companion to showRollPhrase/hideRollPhrase, but for the decorative
    corner curves (see .corner-hint.hint-hidden in CSS): call once the
@@ -2787,6 +2807,9 @@ async function roll(){
       setTimeout(() => {
         clearInterval(flickerIvs[i]);
         lockTile(t, result.letters[i]);
+        if(i === 0){
+          settleRollPhrase(); // first letter's readable now — glow's done its job
+        }
         if(i === 4){
           hideRollPhrase(); // word is entirely rolled — the phrase should stop glowing now, not wait for badges/score to finish landing
           hideCornerHints(); // same moment — the curves finish fading out now that the word is readable
