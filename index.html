@@ -949,10 +949,23 @@ body.dark .word-content span{ color: #17181c; }
   justify-items:center;
   margin-top: 0;
 }
-.percentile-collapse > div{ overflow:hidden; min-height:0; padding-bottom: 4px; }
+.percentile-collapse > div{ overflow:hidden; min-height:0; }
 .percentile-collapse.expanded{
   grid-template-rows: 1fr;
   margin-top: 16px;
+}
+/* the 4px only applies while expanded (including mid-transition, since
+   the "expanded" class is added the instant the reveal starts) — it
+   exists purely to give the plate's border/box-shadow a hair of extra
+   room so it doesn't get sliced by this wrapper's overflow:hidden.
+   Scoping it to .expanded matters: applied unconditionally, it forces
+   this grid item to a permanent 4px floor even at grid-template-rows:
+   0fr (a stretched grid item still renders its own padding), which
+   left a constant sliver of the plate's top edge visibly peeking out
+   under the score plate any time the box was supposed to be fully
+   collapsed — exactly the "clipping as soon as the roll starts" bug. */
+.percentile-collapse.expanded > div{
+  padding-bottom: 4px;
 }
 /* fades + rises into view (rather than popping straight to full
    opacity) the moment the percentile plate appears (see
