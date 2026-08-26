@@ -339,12 +339,13 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
    beyond — the card's rounded edge. Only a short ~50° slice centered
    on the diagonal is drawn (not the full quarter-circle), so it reads
    as a stubby corner tick rather than a full nested corner outline.
-   Purely decorative: the visible <path> has pointer-events:none so it
-   never steals taps from .roll-zone / .graph-zone underneath. A second,
-   invisible, fat-stroked path layered on top of it (.corner-hint-hit)
-   is what actually catches hover, since the thin visible line alone is
-   too fiddly a target — its own pointer-events:stroke lets it pick up
-   hover without blocking clicks anywhere off the line itself. */
+   The visible <path> itself has pointer-events:none (it's too thin to
+   reliably hit), but the fat invisible path layered on top of it
+   (.corner-hint-hit) is a real click target in its own right —
+   pointer-events:stroke lets it pick up hover/click only over the
+   stroke area itself, so it doesn't block clicks anywhere off the
+   line, and tapping it fires the same action as .roll-zone / .graph-zone
+   underneath (see the click listeners on #cornerHitBr / #cornerHitTl). */
 .corner-hint{
   position: absolute;
   width: 40px;
@@ -359,13 +360,14 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
   stroke: transparent;
   stroke-width: 14;
   pointer-events: stroke;
+  cursor: pointer;
 }
 .corner-hint-line{
   fill: none;
   stroke: rgba(170,163,168,0.3);
   stroke-width: 3.2;
   stroke-linecap: round;
-  transition: stroke-width 0.15s ease;
+  transition: stroke-width 0.15s ease, opacity 0.4s ease;
 }
 body.dark .corner-hint-line{
   stroke: rgba(255,255,255,0.12);
@@ -381,6 +383,37 @@ body.dark .corner-hint-line{
 .corner-hint-tl:has(.corner-hint-hit:hover) .corner-hint-line,
 .game-card:has(.graph-zone:hover) .corner-hint-tl .corner-hint-line{
   stroke-width: 4.6;
+}
+
+/* both curves stop working the moment a roll starts (mirrors
+   .roll-zone.disabled / .graph-zone.disabled — pointer-events:none
+   so clicks/hover can't land) but rather than vanishing the instant
+   they go inert, they just lose their glow-hover ability and settle
+   to a dim, still-readable line. Only once the rolled word is fully
+   readable (last tile locks — see hideCornerHints() in JS, which adds
+   .hint-hidden) do they fade out the rest of the way to invisible;
+   showCornerHints() removes it again once the roll fully commits and
+   the zones re-enable, bringing the curves back at full strength. */
+.game-card.rolling .corner-hint-hit{
+  pointer-events: none;
+}
+.game-card.rolling .corner-hint-line{
+  opacity: 0.4;
+}
+.corner-hint.hint-hidden .corner-hint-line{
+  opacity: 0;
+}
+
+/* bottom-right curve pairs with .roll-zone, which has nothing to do
+   while the graph view is showing (see .game-card.graph-mode
+   .roll-zone above) — so it fades out the same way, and stays out
+   until graph-mode is left again. The top-left curve stays active
+   here since tapping it is how you get back to the game view. */
+.game-card.graph-mode .corner-hint-br .corner-hint-hit{
+  pointer-events: none;
+}
+.game-card.graph-mode .corner-hint-br .corner-hint-line{
+  opacity: 0;
 }
 /* while rolling / dealing badges: the card shrinks down to hug just the
    tiles, and the title/subtitle/footer inside it fade + collapse away
@@ -1696,12 +1729,12 @@ body.dark .word-content span{ color: #17181c; }
        outside it. Bottom-right pairs with .roll-zone, top-left with
        .graph-zone; each hint's hover state is wired to both its own
        curve and its matching zone (see the :has() rules above). -->
-  <svg class="corner-hint corner-hint-br" viewBox="0 0 40 40" aria-hidden="true">
-    <path class="corner-hint-hit" d="M 30.07 10.94 A 32 32 0 0 1 10.94 30.07" />
+  <svg class="corner-hint corner-hint-br" id="cornerHintBr" viewBox="0 0 40 40" aria-hidden="true">
+    <path class="corner-hint-hit" id="cornerHitBr" d="M 30.07 10.94 A 32 32 0 0 1 10.94 30.07" />
     <path class="corner-hint-line" d="M 30.07 10.94 A 32 32 0 0 1 10.94 30.07" />
   </svg>
-  <svg class="corner-hint corner-hint-tl" viewBox="0 0 40 40" aria-hidden="true">
-    <path class="corner-hint-hit" d="M 9.93 29.06 A 32 32 0 0 1 29.06 9.93" />
+  <svg class="corner-hint corner-hint-tl" id="cornerHintTl" viewBox="0 0 40 40" aria-hidden="true">
+    <path class="corner-hint-hit" id="cornerHitTl" d="M 9.93 29.06 A 32 32 0 0 1 29.06 9.93" />
     <path class="corner-hint-line" d="M 9.93 29.06 A 32 32 0 0 1 29.06 9.93" />
   </svg>
 </div>
@@ -1823,6 +1856,10 @@ const wordSpanEl = document.getElementById('wordSpan');
 const tilesEl = document.getElementById('tiles');
 const rollZone = document.getElementById('rollZone');
 const graphZone = document.getElementById('graphZone');
+const cornerHintBr = document.getElementById('cornerHintBr');
+const cornerHintTl = document.getElementById('cornerHintTl');
+const cornerHitBr = document.getElementById('cornerHitBr');
+const cornerHitTl = document.getElementById('cornerHitTl');
 const distributionChartEl = document.getElementById('distributionChart');
 const distributionCountEl = document.getElementById('distributionCount');
 const distributionEmptyEl = document.getElementById('distributionEmpty');
@@ -1998,6 +2035,7 @@ function revealTileByClick(i){
     const revealDelay = revealEligibleBadges();
     if(revealedTileIdxs.size === 5){
       hideRollPhrase(); // word is entirely rolled — the phrase should stop glowing now, not wait for badges/score to finish landing
+      hideCornerHints(); // same moment — the curves finish fading out now that the word is readable
       sequentialAwaitingClicks = false;
       const word = stageLetters.join('');
       const saved = pendingRollResult.saved;
@@ -2615,6 +2653,19 @@ function showRollPhrase(){
   rollPhraseEl.textContent = pickRollPhrase();
   rollPhraseEl.classList.add('show');
 }
+/* companion to showRollPhrase/hideRollPhrase, but for the decorative
+   corner curves (see .corner-hint.hint-hidden in CSS): call once the
+   rolled word is fully readable to fade them out the rest of the way,
+   and again once the roll fully commits to bring them back. */
+function hideCornerHints(){
+  cornerHintBr.classList.add('hint-hidden');
+  cornerHintTl.classList.add('hint-hidden');
+}
+function showCornerHints(){
+  cornerHintBr.classList.remove('hint-hidden');
+  cornerHintTl.classList.remove('hint-hidden');
+}
+
 function hideRollPhrase(){
   rollPhraseEl.classList.remove('show');
 }
@@ -2653,6 +2704,7 @@ async function rollFailed(err, clearIntervals){
   spinning = false;
   rollZone.classList.remove('disabled');
   graphZone.classList.remove('disabled');
+  showCornerHints();
   updateToggleLockState();
   // the pill just showed a leftover flicker glyph (no glow, base fade)
   // as a placeholder during the shrink — hand it back to the normal
@@ -2737,6 +2789,7 @@ async function roll(){
         lockTile(t, result.letters[i]);
         if(i === 4){
           hideRollPhrase(); // word is entirely rolled — the phrase should stop glowing now, not wait for badges/score to finish landing
+          hideCornerHints(); // same moment — the curves finish fading out now that the word is readable
           finishRoll(result.letters, result.matches, result.total, result.saved, result.credits);
         }
       }, delays[i]);
@@ -2816,6 +2869,7 @@ function commitRollResult(word, matches, total, saved, credits){
   spinning = false;
   rollZone.classList.remove('disabled');
   graphZone.classList.remove('disabled');
+  showCornerHints();
   updateToggleLockState();
 
   /* let the final score sit for a beat while still in the shrunk
@@ -3360,6 +3414,15 @@ openLeaderboardBtn.addEventListener('click', () => openModal('leaderboardModal')
 creditsDisplayEl.addEventListener('click', () => openModal('creditsModal'));
 
 rollZone.addEventListener('click', roll);
+
+/* the corner curves are a real (if secondary) click target: tapping
+   the fat invisible hit-path fires the same action as its matching
+   zone. Each hit-path is only reachable via CSS pointer-events when
+   its zone is actually usable (see .game-card.rolling /
+   .game-card.graph-mode rules above), so no extra guard is needed
+   here — same as .roll-zone / .graph-zone themselves. */
+cornerHitBr.addEventListener('click', roll);
+cornerHitTl.addEventListener('click', () => graphZone.click());
 
 /* ================= score distribution chart ================= */
 /* Renders get_score_distribution() (global, all players, resets daily
