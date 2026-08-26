@@ -940,16 +940,19 @@ body.dark .word-content span{ color: #17181c; }
   font-size: 1.15rem;
   text-transform: lowercase;
 }
-/* brief highlight the moment the percentile plate appears (see
-   showPercentilePlate) — settles back into the plate's normal quiet
-   border/shadow (matching .plate) once the flash finishes. */
+/* fades + rises into view (rather than popping straight to full
+   opacity) the moment the percentile plate appears (see
+   showPercentilePlate), with the same brief pink glow settling back
+   into the plate's normal quiet border/shadow at the end. Slowed down
+   and eased gently so the reveal itself reads as smooth rather than
+   sudden. */
 .percentile-plate.just-appeared{
-  animation: percentileAppearGlow 1s ease-out;
+  animation: percentileAppearGlow 1.8s cubic-bezier(.16,1,.3,1);
 }
 @keyframes percentileAppearGlow{
-  0%   { border-color: var(--border); box-shadow: 0 1px 0 rgba(0,0,0,0.02); }
-  25%  { border-color: var(--glare-pink); box-shadow: 0 0 16px var(--glare-pink-glow), 0 0 4px var(--glare-pink-light); }
-  100% { border-color: var(--border); box-shadow: 0 1px 0 rgba(0,0,0,0.02); }
+  0%   { opacity: 0; transform: translateY(8px) scale(0.94); border-color: var(--border); box-shadow: 0 1px 0 rgba(0,0,0,0.02); }
+  35%  { opacity: 1; transform: translateY(0) scale(1); border-color: var(--glare-pink); box-shadow: 0 0 16px var(--glare-pink-glow), 0 0 4px var(--glare-pink-light); }
+  100% { opacity: 1; transform: translateY(0) scale(1); border-color: var(--border); box-shadow: 0 1px 0 rgba(0,0,0,0.02); }
 }
 
 /* ---------- badge breakdown ---------- */
@@ -2878,11 +2881,12 @@ function commitRollResult(word, matches, total, saved, credits){
     if(total > (currentProfile.best_score || 0)) currentProfile.best_word = word;
     currentProfile.best_score = Math.max(currentProfile.best_score || 0, total);
   }
-  /* delayed on purpose — letting the score/badges settle first makes
-     the percentile box read as a follow-up reveal rather than popping
-     in at the same instant as everything else (see showPercentilePlate,
-     which gives it a brief glow when it lands). */
-  setTimeout(() => updatePercentileBox(total), 700);
+  /* the percentile box no longer fires on its own fixed timer — it
+     waits on the pill's own shrink-back animation (see
+     shrinkPillToWord below) and shows itself 0.5s after that's
+     actually finished, so it reads as a follow-up reveal once
+     everything else has visibly settled rather than popping in while
+     things are still resizing. */
 
   if(isNewHighscore){
     gameCardEl.classList.remove('highscore-flash');
@@ -2902,8 +2906,13 @@ function commitRollResult(word, matches, total, saved, credits){
      never entered the collapsed state to begin with. */
   setTimeout(() => {
     lastRolledWord = word;
-    shrinkPillToWord(word, true);
+    const pillResized = shrinkPillToWord(word, true);
     exitRollFocus();
+    // percentile box waits until the pill is actually back to its
+    // original size, plus a further 0.5s beat, before it shows up
+    pillResized.then(() => {
+      setTimeout(() => updatePercentileBox(total), 500);
+    });
   }, 500);
 }
 
