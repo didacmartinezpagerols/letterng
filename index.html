@@ -949,7 +949,7 @@ body.dark .word-content span{ color: #17181c; }
   justify-items:center;
   margin-top: 0;
 }
-.percentile-collapse > div{ overflow:hidden; min-height:0; }
+.percentile-collapse > div{ overflow:hidden; min-height:0; padding-bottom: 4px; }
 .percentile-collapse.expanded{
   grid-template-rows: 1fr;
   margin-top: 16px;
@@ -2737,6 +2737,21 @@ async function rollFailed(err, clearIntervals){
   tileRefs.forEach(t => t.classList.remove('spinning'));
   await shrinkPillToWord(wordSpanEl.textContent);
   exitRollFocus();
+  /* exitRollFocus() above snaps the card/topbar/scorepanel straight
+     back to their normal idle layout with no transition of their own —
+     but the percentile box's own collapse (kicked off way back at
+     resetRunningScore(), when the roll started) is still mid-way
+     through its slow 0.6s shrink. On a normal roll there's plenty
+     going on (tiles, badges) to cover that up; on a failure everything
+     else has already snapped to "idle" instantly, so that lingering
+     partial-height box is left sitting there on its own, clipped by
+     its own overflow:hidden — reading as a stray cut-off box under the
+     score plate. Force it the rest of the way closed immediately
+     rather than leaving it to finish on its own clock. */
+  percentileCollapseEl.classList.remove('expanded');
+  percentileCollapseEl.style.transition = 'none';
+  void percentileCollapseEl.offsetWidth;
+  percentileCollapseEl.style.transition = '';
   if(typeof err.credits === 'number'){
     currentCredits = err.credits;
     renderCredits();
