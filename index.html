@@ -684,7 +684,7 @@ body.dark .word-content span{ color: #17181c; }
   opacity: 0;
   pointer-events: none;
   z-index: 5;
-  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(.34,1.56,.64,1), text-shadow 0.6s ease;
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(.34,1.56,.64,1), text-shadow 0.6s ease, color 0.4s ease;
 }
 .roll-phrase.show{
   opacity: 1;
@@ -696,13 +696,15 @@ body.dark .word-content span{ color: #17181c; }
   50%      { text-shadow: 0 0 10px var(--glare-pink-glow), 0 0 22px var(--glare-pink-glow); }
 }
 /* once the first letter locks in, the phrase has already done its
-   "something's happening" job — it settles: the pulse stops and the
-   glow drops away, but it stays fully visible/readable (opacity
-   untouched) right up until the word itself is complete, at which
-   point hideRollPhrase() takes it away entirely. */
+   "something's happening" job — it settles: the pulse stops, the glow
+   drops away, and the color eases from the excited glare-pink down to
+   regular body text color, but it stays fully visible/readable
+   (opacity untouched) right up until the word itself is complete, at
+   which point hideRollPhrase() takes it away entirely. */
 .roll-phrase.show.settled{
   animation: none;
   text-shadow: none;
+  color: var(--ink);
 }
 
 .tile{
@@ -987,11 +989,31 @@ body.dark .word-content span{ color: #17181c; }
 }
 
 .percentile-plate{
-  margin-top: 16px;
+  margin-top: 0;
 }
 .percentile-plate .plate-num{
   font-size: 1.15rem;
   text-transform: lowercase;
+}
+/* wrapper that lets the percentile plate grow/collapse in smoothly
+   instead of snapping in via display:none/'' — same grid-rows trick as
+   .best-score-collapse above, so revealing it gently pushes whatever
+   sits below (the badge breakdown) down rather than shoving it in one
+   frame. See showPercentilePlate() / resetRunningScore(). */
+.percentile-collapse{
+  display:grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.5s cubic-bezier(.65,0,.35,1), opacity 0.4s ease, margin-top 0.5s cubic-bezier(.65,0,.35,1);
+  opacity: 0;
+  width:100%;
+  justify-items:center;
+  margin-top: 0;
+}
+.percentile-collapse > div{ overflow:hidden; min-height:0; }
+.percentile-collapse.visible{
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: 16px;
 }
 /* brief highlight the moment the percentile plate appears (see
    showPercentilePlate) — settles back into the plate's normal quiet
@@ -1813,8 +1835,12 @@ body.dark .word-content span{ color: #17181c; }
     <div class="plate-num" id="lastRollScore">0</div>
     <div class="plate-label">score</div>
   </div>
-  <div class="plate percentile-plate" id="percentilePlate" style="display:none;">
-    <div class="plate-num" id="percentileText">—</div>
+  <div class="percentile-collapse" id="percentileCollapse">
+    <div>
+      <div class="plate percentile-plate" id="percentilePlate">
+        <div class="plate-num" id="percentileText">—</div>
+      </div>
+    </div>
   </div>
   <!-- "all time best score" box removed from view. The elements are kept
        (just hidden) rather than deleted from the DOM, since bestScoreEl /
@@ -1936,6 +1962,7 @@ const distributionEmptyEl = document.getElementById('distributionEmpty');
 const totalScoreEl = document.getElementById('lastRollScore');
 const bestScoreEl = document.getElementById('bestScore');
 const percentilePlate = document.getElementById('percentilePlate');
+const percentileCollapseEl = document.getElementById('percentileCollapse');
 const percentileText = document.getElementById('percentileText');
 const badgeListEl = document.getElementById('badgeList');
 const breakdownSubEl = document.getElementById('breakdownSub');
@@ -2334,7 +2361,7 @@ function resetRunningScore(){
   scoreAnimId++;
   totalScoreEl.classList.remove('bump');
   totalScoreEl.textContent = 0;
-  percentilePlate.style.display = 'none';
+  percentileCollapseEl.classList.remove('visible');
   percentileText.textContent = '—';
 }
 /* animates the score plate counting up rapidly from whatever is currently
@@ -3003,8 +3030,10 @@ function commitRollResult(word, matches, total, saved, credits){
   /* delayed on purpose — letting the score/badges settle first makes
      the percentile box read as a follow-up reveal rather than popping
      in at the same instant as everything else (see showPercentilePlate,
-     which gives it a brief glow when it lands). */
-  setTimeout(() => updatePercentileBox(total), 700);
+     which gives it a brief glow when it lands, and the
+     .percentile-collapse grid-rows transition that eases the badge
+     section down instead of snapping it). */
+  setTimeout(() => updatePercentileBox(total), 1000);
 
   if(isNewHighscore){
     gameCardEl.classList.remove('highscore-flash');
@@ -3508,7 +3537,7 @@ async function updatePercentileBox(score){
   try{
     const { data, error } = await sbClient.rpc('get_daily_leaderboard', { p_limit: 100000 });
     if(error || !data || !data.length){
-      percentilePlate.style.display = 'none';
+      percentileCollapseEl.classList.remove('visible');
       return;
     }
     /* drop the current player's own leaderboard row (if any) so this
@@ -3521,7 +3550,7 @@ async function updatePercentileBox(score){
     const scores = otherScores.concat([score]);
     const total = scores.length;
     if(total < 2){
-      percentilePlate.style.display = 'none';
+      percentileCollapseEl.classList.remove('visible');
       return;
     }
     const rank = scores.filter(s => s > score).length + 1; /* 1 = best */
@@ -3539,17 +3568,18 @@ async function updatePercentileBox(score){
     showPercentilePlate();
   } catch(err){
     console.error('updatePercentileBox failed', err);
-    percentilePlate.style.display = 'none';
+    percentileCollapseEl.classList.remove('visible');
   }
 }
 
-/* reveals the percentile plate and gives it a brief glow (see
+/* reveals the percentile plate (smoothly, via .percentile-collapse's
+   grid-rows transition — see the CSS) and gives it a brief glow (see
    .percentile-plate.just-appeared / percentileAppearGlow) so its
    appearance actually reads as new information landing, not just a
    box that was there all along. The reflow trick lets the glow
    restart cleanly even if the plate somehow re-shows back-to-back. */
 function showPercentilePlate(){
-  percentilePlate.style.display = '';
+  percentileCollapseEl.classList.add('visible');
   percentilePlate.classList.remove('just-appeared');
   void percentilePlate.offsetWidth;
   percentilePlate.classList.add('just-appeared');
