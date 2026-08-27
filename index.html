@@ -630,7 +630,7 @@ body.dark .word-content span{ color: #17181c; }
   opacity: 0;
   pointer-events: none;
   z-index: 5;
-  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(.34,1.56,.64,1), text-shadow 0.6s ease, color 0.6s ease;
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(.34,1.56,.64,1), text-shadow 0.6s ease;
 }
 .roll-phrase.show{
   opacity: 1;
@@ -649,7 +649,6 @@ body.dark .word-content span{ color: #17181c; }
 .roll-phrase.show.settled{
   animation: none;
   text-shadow: none;
-  color: var(--ink);
 }
 
 .tile{
@@ -933,53 +932,23 @@ body.dark .word-content span{ color: #17181c; }
   gap: 6px;
 }
 
+.percentile-plate{
+  margin-top: 16px;
+}
 .percentile-plate .plate-num{
   font-size: 1.15rem;
   text-transform: lowercase;
 }
-/* wrapper that lets the percentile plate grow/shrink into the layout
-   smoothly (same accordion technique as .best-score-collapse above)
-   instead of popping straight from display:none to full height and
-   shoving the badge breakdown below it down in one frame. */
-.percentile-collapse{
-  display:grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.6s cubic-bezier(.65,0,.35,1), margin-top 0.6s cubic-bezier(.65,0,.35,1);
-  width:100%;
-  justify-items:center;
-  margin-top: 0;
-}
-.percentile-collapse > div{ overflow:hidden; min-height:0; }
-.percentile-collapse.expanded{
-  grid-template-rows: 1fr;
-  margin-top: 16px;
-}
-/* the 4px only applies while expanded (including mid-transition, since
-   the "expanded" class is added the instant the reveal starts) — it
-   exists purely to give the plate's border/box-shadow a hair of extra
-   room so it doesn't get sliced by this wrapper's overflow:hidden.
-   Scoping it to .expanded matters: applied unconditionally, it forces
-   this grid item to a permanent 4px floor even at grid-template-rows:
-   0fr (a stretched grid item still renders its own padding), which
-   left a constant sliver of the plate's top edge visibly peeking out
-   under the score plate any time the box was supposed to be fully
-   collapsed — exactly the "clipping as soon as the roll starts" bug. */
-.percentile-collapse.expanded > div{
-  padding-bottom: 4px;
-}
-/* fades + rises into view (rather than popping straight to full
-   opacity) the moment the percentile plate appears (see
-   showPercentilePlate), with the same brief pink glow settling back
-   into the plate's normal quiet border/shadow at the end. Slowed down
-   and eased gently so the reveal itself reads as smooth rather than
-   sudden. */
+/* brief highlight the moment the percentile plate appears (see
+   showPercentilePlate) — settles back into the plate's normal quiet
+   border/shadow (matching .plate) once the flash finishes. */
 .percentile-plate.just-appeared{
-  animation: percentileAppearGlow 2s ease-in-out;
+  animation: percentileAppearGlow 1s ease-out;
 }
 @keyframes percentileAppearGlow{
-  0%   { opacity: 0; transform: translateY(10px) scale(0.92); border-color: var(--border); box-shadow: 0 1px 0 rgba(0,0,0,0.02); }
-  55%  { opacity: 1; transform: translateY(0) scale(1); border-color: var(--glare-pink); box-shadow: 0 0 16px var(--glare-pink-glow), 0 0 4px var(--glare-pink-light); }
-  100% { opacity: 1; transform: translateY(0) scale(1); border-color: var(--border); box-shadow: 0 1px 0 rgba(0,0,0,0.02); }
+  0%   { border-color: var(--border); box-shadow: 0 1px 0 rgba(0,0,0,0.02); }
+  25%  { border-color: var(--glare-pink); box-shadow: 0 0 16px var(--glare-pink-glow), 0 0 4px var(--glare-pink-light); }
+  100% { border-color: var(--border); box-shadow: 0 1px 0 rgba(0,0,0,0.02); }
 }
 
 /* ---------- badge breakdown ---------- */
@@ -1784,12 +1753,8 @@ body.dark .word-content span{ color: #17181c; }
     <div class="plate-num" id="lastRollScore">0</div>
     <div class="plate-label">score</div>
   </div>
-  <div class="percentile-collapse" id="percentileCollapse">
-    <div>
-      <div class="plate percentile-plate" id="percentilePlate">
-        <div class="plate-num" id="percentileText">—</div>
-      </div>
-    </div>
+  <div class="plate percentile-plate" id="percentilePlate" style="display:none;">
+    <div class="plate-num" id="percentileText">—</div>
   </div>
   <!-- "all time best score" box removed from view. The elements are kept
        (just hidden) rather than deleted from the DOM, since bestScoreEl /
@@ -1910,7 +1875,6 @@ const distributionEmptyEl = document.getElementById('distributionEmpty');
 const totalScoreEl = document.getElementById('lastRollScore');
 const bestScoreEl = document.getElementById('bestScore');
 const percentilePlate = document.getElementById('percentilePlate');
-const percentileCollapseEl = document.getElementById('percentileCollapse');
 const percentileText = document.getElementById('percentileText');
 const badgeListEl = document.getElementById('badgeList');
 const breakdownSubEl = document.getElementById('breakdownSub');
@@ -2258,12 +2222,24 @@ function clearPendingReveals(){
 
 let runningScore = 0;
 let scoreAnimId = 0; /* bumped on every new animation so a stale rAF loop knows to stop */
+/* Bumped every time a new roll starts. Badge-card animations from the
+   PREVIOUS roll are still in-flight (each is an async chain of several
+   `await wait(...)` steps) when a fast player rolls again, and their
+   trailing bumpRunningScore(m.points) call used to fire unconditionally
+   — landing after the new roll's total was already committed and
+   silently inflating the score plate by that stray badge's points
+   (see bumpRunningScore below). Every badge-reveal callback captures
+   the rollGen that was current when it was scheduled and bumpRunningScore
+   ignores any call whose gen doesn't match the live one, so a late
+   arrival from an old roll is a no-op instead of extra points. */
+let rollGen = 0;
 function resetRunningScore(){
+  rollGen++;
   runningScore = 0;
   scoreAnimId++;
   totalScoreEl.classList.remove('bump');
   totalScoreEl.textContent = 0;
-  percentileCollapseEl.classList.remove('expanded');
+  percentilePlate.style.display = 'none';
   percentileText.textContent = '—';
 }
 /* animates the score plate counting up rapidly from whatever is currently
@@ -2295,7 +2271,8 @@ function scoreAnimDuration(){
   if(rollMode === 'medium') return 600;
   return 380;
 }
-function bumpRunningScore(points){
+function bumpRunningScore(points, gen){
+  if(gen !== rollGen) return; /* stale badge card from a previous roll — ignore */
   runningScore += points;
   animateScoreTo(runningScore, scoreAnimDuration());
   totalScoreEl.classList.remove('bump');
@@ -2475,7 +2452,7 @@ async function dealGhostFromTile(tileIdx, rarity, finalRect, durations, crossing
    "BADGE BREAKDOWN" heading — then once it's at the badge list's
    level, slide it sideways into its slot, grow it to full size, and
    unblur to reveal the real badge content. */
-async function dealBadgeCard(card, m){
+async function dealBadgeCard(card, m, gen){
   const durations = badgeFlightDurations();
   const originTile = tileRefs[m.highlight[0]];
   const tileRect = originTile ? originTile.getBoundingClientRect() : null;
@@ -2504,7 +2481,7 @@ async function dealBadgeCard(card, m){
   if(!tileRect){
     // no origin tile to fly from (shouldn't normally happen) — just show it
     card.classList.remove('flying');
-    bumpRunningScore(m.points);
+    bumpRunningScore(m.points, gen);
     return;
   }
 
@@ -2556,7 +2533,7 @@ async function dealBadgeCard(card, m){
   // just after the card itself starts clearing — reading as one soft
   // handoff rather than two things switching at once.
   card.classList.remove('flying');
-  bumpRunningScore(m.points);
+  bumpRunningScore(m.points, gen);
   const revealEase = 'cubic-bezier(.22,.61,.36,1)';
   const contentDelay = Math.round(durations.reveal * 0.18);
   card.style.transition = `filter ${durations.reveal}ms ${revealEase}, background ${durations.reveal}ms ${revealEase}, box-shadow ${durations.reveal}ms ${revealEase}, border-color ${durations.reveal}ms ${revealEase}`;
@@ -2577,7 +2554,7 @@ async function dealBadgeCard(card, m){
 
 function wait(ms){ return new Promise(r => setTimeout(r, ms)); }
 
-function appendBadgeCard(m, word, revealedIdxs){
+function appendBadgeCard(m, word, revealedIdxs, gen){
   const wrap = document.createElement('div');
   wrap.innerHTML = badgeCardHTML(m, word, revealedIdxs).trim();
   const card = wrap.firstElementChild;
@@ -2624,17 +2601,20 @@ function appendBadgeCard(m, word, revealedIdxs){
     });
   });
 
-  dealBadgeCard(card, m);
+  dealBadgeCard(card, m, gen);
 }
 
 /* schedules a small stagger between newly-eligible badges so they still
    land one at a time rather than all snapping in together */
 function scheduleBadgeReveals(list, word, revealedIdxs){
+  const gen = rollGen; /* the roll these badges belong to, captured now — not
+                           whatever roll happens to be current when the
+                           delayed callback below actually fires */
   let delay = 60;
   list.forEach(m => {
     delay += m.announce ? 200 : 0;
     const revealAt = delay;
-    const id = setTimeout(() => appendBadgeCard(m, word, revealedIdxs), revealAt);
+    const id = setTimeout(() => appendBadgeCard(m, word, revealedIdxs, gen), revealAt);
     pendingRevealTimers.push(id);
     delay += m.announce ? 620 : 380;
   });
@@ -2750,21 +2730,6 @@ async function rollFailed(err, clearIntervals){
   tileRefs.forEach(t => t.classList.remove('spinning'));
   await shrinkPillToWord(wordSpanEl.textContent);
   exitRollFocus();
-  /* exitRollFocus() above snaps the card/topbar/scorepanel straight
-     back to their normal idle layout with no transition of their own —
-     but the percentile box's own collapse (kicked off way back at
-     resetRunningScore(), when the roll started) is still mid-way
-     through its slow 0.6s shrink. On a normal roll there's plenty
-     going on (tiles, badges) to cover that up; on a failure everything
-     else has already snapped to "idle" instantly, so that lingering
-     partial-height box is left sitting there on its own, clipped by
-     its own overflow:hidden — reading as a stray cut-off box under the
-     score plate. Force it the rest of the way closed immediately
-     rather than leaving it to finish on its own clock. */
-  percentileCollapseEl.classList.remove('expanded');
-  percentileCollapseEl.style.transition = 'none';
-  void percentileCollapseEl.offsetWidth;
-  percentileCollapseEl.style.transition = '';
   if(typeof err.credits === 'number'){
     currentCredits = err.credits;
     renderCredits();
@@ -2875,10 +2840,11 @@ async function roll(){
    ms — the same pacing the speed slider already controls for tiles —
    so the score-bump animation has time to actually be seen. */
 function scheduleQuickRollBadgeReveals(matches, word, total, saved, credits){
+  const gen = rollGen; /* see scheduleBadgeReveals — same staleness guard */
   const ordered = matches.slice().sort((a,b) => a.points - b.points);
   let delay = 150;
   ordered.forEach(m => {
-    const id = setTimeout(() => appendBadgeCard(m, word), delay);
+    const id = setTimeout(() => appendBadgeCard(m, word, undefined, gen), delay);
     pendingRevealTimers.push(id);
     delay += quickRollGap;
   });
@@ -2928,12 +2894,11 @@ function commitRollResult(word, matches, total, saved, credits){
     if(total > (currentProfile.best_score || 0)) currentProfile.best_word = word;
     currentProfile.best_score = Math.max(currentProfile.best_score || 0, total);
   }
-  /* the percentile box no longer fires on its own fixed timer — it
-     waits on the pill's own shrink-back animation (see
-     shrinkPillToWord below) and shows itself 0.5s after that's
-     actually finished, so it reads as a follow-up reveal once
-     everything else has visibly settled rather than popping in while
-     things are still resizing. */
+  /* delayed on purpose — letting the score/badges settle first makes
+     the percentile box read as a follow-up reveal rather than popping
+     in at the same instant as everything else (see showPercentilePlate,
+     which gives it a brief glow when it lands). */
+  setTimeout(() => updatePercentileBox(total), 700);
 
   if(isNewHighscore){
     gameCardEl.classList.remove('highscore-flash');
@@ -2953,13 +2918,8 @@ function commitRollResult(word, matches, total, saved, credits){
      never entered the collapsed state to begin with. */
   setTimeout(() => {
     lastRolledWord = word;
-    const pillResized = shrinkPillToWord(word, true);
+    shrinkPillToWord(word, true);
     exitRollFocus();
-    // percentile box waits until the pill is actually back to its
-    // original size, plus a further 0.25s beat, before it shows up
-    pillResized.then(() => {
-      setTimeout(() => updatePercentileBox(total), 250);
-    });
   }, 500);
 }
 
@@ -3442,7 +3402,7 @@ async function updatePercentileBox(score){
   try{
     const { data, error } = await sbClient.rpc('get_daily_leaderboard', { p_limit: 100000 });
     if(error || !data || !data.length){
-      percentileCollapseEl.classList.remove('expanded');
+      percentilePlate.style.display = 'none';
       return;
     }
     /* drop the current player's own leaderboard row (if any) so this
@@ -3455,7 +3415,7 @@ async function updatePercentileBox(score){
     const scores = otherScores.concat([score]);
     const total = scores.length;
     if(total < 2){
-      percentileCollapseEl.classList.remove('expanded');
+      percentilePlate.style.display = 'none';
       return;
     }
     const rank = scores.filter(s => s > score).length + 1; /* 1 = best */
@@ -3473,19 +3433,17 @@ async function updatePercentileBox(score){
     showPercentilePlate();
   } catch(err){
     console.error('updatePercentileBox failed', err);
-    percentileCollapseEl.classList.remove('expanded');
+    percentilePlate.style.display = 'none';
   }
 }
 
-/* reveals the percentile plate: the collapse wrapper grows to make
-   room for it (see .percentile-collapse.expanded) while the plate
-   itself gets a brief glow (see .percentile-plate.just-appeared /
-   percentileAppearGlow) so its appearance reads as new information
-   landing, not just a box that was there all along. The reflow trick
-   lets the glow restart cleanly even if the plate somehow re-shows
-   back-to-back. */
+/* reveals the percentile plate and gives it a brief glow (see
+   .percentile-plate.just-appeared / percentileAppearGlow) so its
+   appearance actually reads as new information landing, not just a
+   box that was there all along. The reflow trick lets the glow
+   restart cleanly even if the plate somehow re-shows back-to-back. */
 function showPercentilePlate(){
-  percentileCollapseEl.classList.add('expanded');
+  percentilePlate.style.display = '';
   percentilePlate.classList.remove('just-appeared');
   void percentilePlate.offsetWidth;
   percentilePlate.classList.add('just-appeared');
