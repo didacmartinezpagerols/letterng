@@ -415,6 +415,59 @@ body.dark .corner-hint-line{
 .game-card.graph-mode .corner-hint-br .corner-hint-line{
   opacity: 0;
 }
+
+/* the curve's rest position keeps a small permanent gap from the tile
+   box — it never snaps all the way back to flush. From that rest spot
+   it does two quick out-and-back bounces (same per-move speed as a
+   single bounce, just repeated, with a smaller swing than before) and
+   then holds still for ~1.5s before repeating. Pauses whenever the
+   curve itself is inert (mid-roll, graph view, or already faded via
+   hint-hidden) so it never moves while it isn't actually a live
+   target. */
+@keyframes cornerHintShake{
+  0%{ transform: translate(1px, 1px); }
+  7.14%{ transform: translate(4px, 4px); }
+  14.29%{ transform: translate(1px, 1px); }
+  21.43%{ transform: translate(4px, 4px); }
+  28.57%, 100%{ transform: translate(1px, 1px); }
+}
+.corner-hint-br{
+  animation: cornerHintShake 2.1s ease-in-out infinite;
+}
+.game-card.rolling .corner-hint-br,
+.game-card.graph-mode .corner-hint-br,
+.corner-hint-br.hint-hidden{
+  animation-play-state: paused;
+}
+
+/* "roll" hint text tucked into the same bottom-right corner as the curve
+   above — right/bottom chosen to sit near the arc's own midpoint (the
+   curve's circle is centered on the card's true corner with radius 32,
+   spanning ~20°-70°, so its midpoint lands only a few px outside the
+   card edge) rather than hugging the bottom edge. Hidden by default —
+   JS fades it in (.visible) only after the card has sat idle for a few
+   seconds, and hides it again the instant a roll starts (see
+   updateCornerRollLabel()). */
+.corner-roll-label{
+  position: absolute;
+  right: 17px;
+  bottom: 15px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #8f8d99;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 11;
+  transition: opacity 0.9s ease;
+}
+.corner-roll-label.visible{
+  opacity: 0.75;
+}
+.game-card.graph-mode .corner-roll-label.visible{
+  opacity: 0;
+}
 /* while rolling / dealing badges: the card shrinks down to hug just the
    tiles, and the title/subtitle/footer inside it fade + collapse away
    (see .collapse-block below) so the roll itself feels like the moment.
@@ -559,6 +612,7 @@ body.dark .corner-hint-line{
 .pill{
   position: relative;
   height: 64px;
+  cursor: pointer;
   transition: width 0.45s cubic-bezier(.65,0,.35,1),
               height 0.45s cubic-bezier(.65,0,.35,1);
 }
@@ -1746,6 +1800,12 @@ body.dark .word-content span{ color: #17181c; }
     <path class="corner-hint-hit" id="cornerHitTl" d="M 9.93 29.06 A 32 32 0 0 1 29.06 9.93" />
     <path class="corner-hint-line" d="M 9.93 29.06 A 32 32 0 0 1 29.06 9.93" />
   </svg>
+
+  <!-- Quiet "roll" nudge tucked into the bottom-right corner, next to the
+       curve. Purely decorative/informational — pointer-events:none so it
+       never steals the click from .roll-zone / .corner-hint-hit beneath
+       it. Faded in/out by updateCornerRollLabel() in JS. -->
+  <div class="corner-roll-label" id="cornerRollLabel" aria-hidden="true">Roll</div>
 </div>
 
 <div class="scorepanel" id="scorepanel">
@@ -1869,6 +1929,7 @@ const cornerHintBr = document.getElementById('cornerHintBr');
 const cornerHintTl = document.getElementById('cornerHintTl');
 const cornerHitBr = document.getElementById('cornerHitBr');
 const cornerHitTl = document.getElementById('cornerHitTl');
+const cornerRollLabelEl = document.getElementById('cornerRollLabel');
 const distributionChartEl = document.getElementById('distributionChart');
 const distributionCountEl = document.getElementById('distributionCount');
 const distributionEmptyEl = document.getElementById('distributionEmpty');
@@ -2202,6 +2263,28 @@ function updateToggleLockState(){
   const locked = rollInProgress();
   rollModeSwitch.classList.toggle('disabled', locked);
   rollModeToggle.disabled = locked;
+  updateCornerRollLabel();
+}
+
+/* the small grey "roll" hint by the bottom-right curve. Hidden the
+   instant a roll is in progress; once things go idle again, it waits
+   3s of continued idleness before fading in — so it never flickers on
+   between rolls, only once the player has actually paused. Piggybacks
+   on updateToggleLockState() since that's already called at every
+   rollInProgress() transition (roll start, roll finish/fail, and each
+   sequential-reveal tile tap). */
+let cornerRollLabelTimer = null;
+function updateCornerRollLabel(){
+  if(rollInProgress()){
+    clearTimeout(cornerRollLabelTimer);
+    cornerRollLabelTimer = null;
+    cornerRollLabelEl.classList.remove('visible');
+  } else if(!cornerRollLabelTimer && !cornerRollLabelEl.classList.contains('visible')){
+    cornerRollLabelTimer = setTimeout(() => {
+      cornerRollLabelEl.classList.add('visible');
+      cornerRollLabelTimer = null;
+    }, 3000);
+  }
 }
 
 setRollMode(rollMode);
@@ -3477,6 +3560,17 @@ openLeaderboardBtn.addEventListener('click', () => openModal('leaderboardModal')
 creditsDisplayEl.addEventListener('click', () => openModal('creditsModal'));
 
 rollZone.addEventListener('click', roll);
+
+/* the word box itself is a second, more discoverable way to roll —
+   same action as the bottom-right corner zone. Guarded with
+   rollInProgress() (unlike the corner zones, the pill can't just rely
+   on CSS pointer-events to stay inert mid-roll, since its child tiles
+   still need to be clickable for one-by-one reveal — see
+   revealTileByClick()/sequentialAwaitingClicks). */
+pillEl.addEventListener('click', () => {
+  if(rollInProgress()) return;
+  roll();
+});
 
 /* the corner curves are a real (if secondary) click target: tapping
    the fat invisible hit-path fires the same action as its matching
