@@ -2886,6 +2886,13 @@ function commitRollResult(word, matches, total, saved, credits){
   }
 
   runningScore = total;
+  scoreAnimId++; /* invalidate any animateScoreTo rAF loop still counting
+                    up toward an earlier (smaller) target from a bump that
+                    landed just before finalization — otherwise that loop
+                    keeps running (its `id` still matches) and a later
+                    frame overwrites the correct value set below with its
+                    own stale, lower number once it reaches its target. */
+  totalScoreEl.classList.remove('bump');
   totalScoreEl.textContent = total;
   bestScoreEl.textContent = bestScore;
 
