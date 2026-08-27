@@ -2233,8 +2233,20 @@ let scoreAnimId = 0; /* bumped on every new animation so a stale rAF loop knows 
    ignores any call whose gen doesn't match the live one, so a late
    arrival from an old roll is a no-op instead of extra points. */
 let rollGen = 0;
+/* True once commitRollResult has force-set the score plate to the real
+   total for the current rollGen. In fast mode, quickRollGap (the stagger
+   between badges STARTING) is shorter than a badge's own landing time
+   (badgeFlightDurations().drop + .settle) — so the last badge(s) can
+   still be mid-flight when commitRollResult already fires. Their
+   trailing bumpRunningScore call used to land afterwards and add its
+   points on top of the already-correct total (e.g. +60 from a
+   still-landing COUNTRY badge → 73 becomes 133). Blocking ANY bump
+   once the roll is finalized closes that regardless of gen, since the
+   correct value is already locked in at that point either way. */
+let rollFinalized = false;
 function resetRunningScore(){
   rollGen++;
+  rollFinalized = false;
   runningScore = 0;
   scoreAnimId++;
   totalScoreEl.classList.remove('bump');
@@ -2272,7 +2284,7 @@ function scoreAnimDuration(){
   return 380;
 }
 function bumpRunningScore(points, gen){
-  if(gen !== rollGen) return; /* stale badge card from a previous roll — ignore */
+  if(gen !== rollGen || rollFinalized) return; /* stale badge, or one landing after commit already locked the true total in */
   runningScore += points;
   animateScoreTo(runningScore, scoreAnimDuration());
   totalScoreEl.classList.remove('bump');
@@ -2856,6 +2868,10 @@ function scheduleQuickRollBadgeReveals(matches, word, total, saved, credits){
    this runs the score plate has already been bumped up badge by badge,
    so this just makes sure it lands exactly on the true total. */
 function commitRollResult(word, matches, total, saved, credits){
+  rollFinalized = true; /* lock the score now — any bumpRunningScore call
+                            still in flight from a not-yet-landed badge
+                            card (see fast-mode timing note above) must
+                            no longer be able to touch the score plate */
   if(typeof credits === 'number'){
     currentCredits = credits;
     renderCredits();
