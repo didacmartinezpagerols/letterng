@@ -534,6 +534,39 @@ body.dark .corner-hint-line{
   grid-template-rows: 1fr;
   opacity: 1;
 }
+
+/* ---------- credits view: swaps in for the tiles the moment a player
+   tries to roll with no credits left (see openCreditsBlock() in JS).
+   Same view-collapse mechanism as #distributionBlock above, just its
+   own block/class pair so the two views can never show at once. ---------- */
+#creditsBlock{
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.game-card.credits-mode #gameView{
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.game-card.credits-mode #creditsBlock{
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+/* while the credit menu is showing, the roll corner has nothing to do
+   (mirrors .game-card.graph-mode .roll-zone below) — and the top-left
+   corner is repurposed to dismiss the menu instead of opening the
+   graph (see the graphZone click handler in JS). */
+.game-card.credits-mode .roll-zone{
+  pointer-events: none;
+}
+.game-card.credits-mode .corner-hint-br .corner-hint-hit{
+  pointer-events: none;
+}
+.game-card.credits-mode .corner-hint-br .corner-hint-line{
+  opacity: 0;
+}
+.game-card.credits-mode .corner-roll-label.visible{
+  opacity: 0;
+}
 .distribution-header{
   display:flex;
   align-items:baseline;
@@ -1797,6 +1830,22 @@ body.dark .word-content span{ color: #17181c; }
     </div>
   </div>
 
+  <!-- Credits view: swapped in over #gameView the moment a player with
+       no credits left starts the roll motion, instead of actually
+       rolling (see openCreditsBlock() in JS). Same view-collapse
+       mechanism the distribution view above uses. -->
+  <div class="view-collapse" id="creditsBlock">
+    <div>
+      <div class="distribution-view">
+        <div class="distribution-header">
+          <span class="distribution-title">Get credits</span>
+        </div>
+        <div id="creditsBlockBody"></div>
+        <div class="hint distribution-hint">Tap the top-left corner to go back.</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Roll button removed — rolling now happens by tapping/clicking a
        generous invisible zone over the bottom-right corner of the card
        itself (see .roll-zone below). Disabled/hidden the same way the
@@ -1959,6 +2008,7 @@ const cornerRollLabelEl = document.getElementById('cornerRollLabel');
 const distributionChartEl = document.getElementById('distributionChart');
 const distributionCountEl = document.getElementById('distributionCount');
 const distributionEmptyEl = document.getElementById('distributionEmpty');
+const creditsBlockBodyEl = document.getElementById('creditsBlockBody');
 const totalScoreEl = document.getElementById('lastRollScore');
 const bestScoreEl = document.getElementById('bestScore');
 const percentilePlate = document.getElementById('percentilePlate');
@@ -2874,7 +2924,7 @@ async function rollFailed(err, clearIntervals){
 async function roll(){
   if(spinning) return;
   if(currentCredits !== null && currentCredits !== UNLIMITED_CREDITS && currentCredits <= 0){
-    breakdownSubEl.textContent = "Out of credits — come back tomorrow for 2 more.";
+    openCreditsBlock();
     return;
   }
   spinning = true;
@@ -3364,9 +3414,6 @@ async function initAuth(){
 }
 updateIdlePillWord();
 initAuth();
-/* show the current leaderboard as soon as the app loads, rather than
-   waiting for the player to tap "leaderboard" */
-openModal('leaderboardModal');
 
 // true while the "change username" form is open from within the Account
 // view — reset on sign-out / modal close so it doesn't leak into the
@@ -3686,6 +3733,10 @@ async function renderDistributionChart(){
 }
 
 graphZone.addEventListener('click', () => {
+  if(gameCardEl.classList.contains('credits-mode')){
+    closeCreditsBlock();
+    return;
+  }
   const showingGraph = gameCardEl.classList.toggle('graph-mode');
   if(showingGraph) renderDistributionChart();
 });
@@ -3702,8 +3753,8 @@ const CREDIT_PACKS_UI = [
   { id: 'large',  credits: 350, price: '€10' },
 ];
 
-function renderCreditsModal(){
-  creditsBody.innerHTML = `
+function creditPacksMarkup(){
+  return `
     <div class="credits-modal-note">Credits refill by 2 every day. Buy more any time to keep rolling.</div>
     ${CREDIT_PACKS_UI.map(p => `
       <div class="almanac-entry credit-pack-entry">
@@ -3717,14 +3768,42 @@ function renderCreditsModal(){
       </div>
     `).join('')}
   `;
+}
+
+function renderCreditsModal(){
+  creditsBody.innerHTML = creditPacksMarkup();
   creditsBody.querySelectorAll('.credit-buy-btn').forEach(btn => {
     btn.addEventListener('click', () => buyCredits(btn.dataset.pack, btn));
   });
 }
 
+/* ---------- inline credits view: shown in the pink game-card itself
+   (see #creditsBlock / .game-card.credits-mode) the moment a
+   credit-less player starts the rolling motion, instead of the roll
+   actually happening. Same card, same buy flow as the credits modal
+   above — just surfaced in place rather than as a popup, mirroring
+   how the score-distribution graph swaps in over the tiles. ---------- */
+function renderCreditsBlock(){
+  creditsBlockBodyEl.innerHTML = creditPacksMarkup();
+  creditsBlockBodyEl.querySelectorAll('.credit-buy-btn').forEach(btn => {
+    btn.addEventListener('click', () => buyCredits(btn.dataset.pack, btn));
+  });
+}
+
+function openCreditsBlock(){
+  renderCreditsBlock();
+  gameCardEl.classList.remove('graph-mode');
+  gameCardEl.classList.add('credits-mode');
+}
+
+function closeCreditsBlock(){
+  gameCardEl.classList.remove('credits-mode');
+}
+
 async function buyCredits(pack, btn){
   if(!isRealAccount()){
     closeModal('creditsModal');
+    closeCreditsBlock();
     openModal('authModal');
     return;
   }
