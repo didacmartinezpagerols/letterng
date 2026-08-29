@@ -1180,12 +1180,40 @@ body.dark .word-content span{ color: #17181c; }
   box-shadow: 0 0 0 1px var(--culture-text) inset;
 }
 
-.badge-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap: 10px;
+/* ---------- badge stacking by rarity ----------
+   Once all of a roll's badges have landed and the percentile box has
+   had a moment to appear, same-rarity badge cards (2+ of a kind) are
+   gathered into a single .badge-stack wrapper and layered on top of
+   each other like a deck of cards, collapsing the vertical space they
+   used to take up. Every card inside a stack is always position:
+   absolute — collapsed vs. spread is just a different target offset
+   per card (see layoutStack()/spreadStack()/contractStack() in JS),
+   so toggling between the two states is one continuous, JS-driven
+   animation rather than a snap between two different layout modes. */
+.badge-stack{
+  position: relative;
+  margin-bottom: 10px;
+  cursor: pointer;
 }
+.badge-stack .badge-card{
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  margin-bottom: 0;
+  transition: transform 0.5s cubic-bezier(.22,.61,.36,1), box-shadow 0.5s ease;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.14);
+}
+/* only the top card of a collapsed stack should feel clickable/legible;
+   the peeking edges underneath are just a depth cue until spread */
+.badge-stack:not(.expanded) .badge-card:not(:first-child){
+  pointer-events: none;
+}
+.badge-stack.expanded .badge-card{
+  box-shadow: none;
+}
+
+
 .badge-titles{
   display:flex;
   align-items:center;
@@ -2627,7 +2655,7 @@ function flashLetterTiles(m){
 
 function badgeCardHTML(m, word, revealedIdxs){
   return `
-    <div class="badge-card ${m.rarity!=='common'?'r-'+m.rarity:''} ${m.announce?'announce':''}">
+    <div class="badge-card ${m.rarity!=='common'?'r-'+m.rarity:''} ${m.announce?'announce':''}" data-rarity="${m.rarity}">
       <div class="badge-header">
         <div class="badge-titles">
           <span class="badge-icon">${m.icon}</span>
@@ -2914,6 +2942,159 @@ function appendBadgeCard(m, word, revealedIdxs, gen){
   dealBadgeCard(card, m, gen);
 }
 
+/* ================= badge stacking by rarity =================
+   Once a roll's badges have all landed and the percentile box has had
+   a moment to appear (see the setTimeout in commitRollResult below),
+   every rarity with 2+ badge cards gets gathered into a single
+   .badge-stack wrapper: the cards layer on top of each other like a
+   deck, collapsing the vertical space they used to take up. Clicking
+   the stack spreads its cards out (vertically, in place, since that's
+   how the whole list is already oriented) so each becomes fully
+   legible again; clicking any one spread card contracts that same
+   rarity back into a stack. Every card inside a stack is always
+   position:absolute — "collapsed" and "spread" are just different
+   per-card translateY targets (see computeStackOffsets) — so toggling
+   between the two is one continuous animation, not a swap between two
+   different layout modes, and the surrounding badge list (including
+   other stacks) is FLIP-animated too so nothing else in the list
+   snaps into its new spot the instant the DOM changes land. */
+const BADGE_STACK_PEEK = 7;  // px each buried card's top edge peeks out by, once collapsed
+const BADGE_STACK_GAP = 10;  // px gap between cards once a stack is spread open
+const BADGE_STACK_DUR = 500; // ms for both stack-forming and spread/contract animations
+
+/* target translateY for each card in `cards`, plus the wrapper height
+   that fits them, for either state — collapsed (peeking deck) or
+   expanded (plain vertical list). Caches each card's own height since
+   it doesn't change between calls. */
+function computeStackOffsets(cards, expanded){
+  let cursor = 0;
+  const offsets = cards.map((card, i) => {
+    if(card.__stackHeight === undefined) card.__stackHeight = card.getBoundingClientRect().height;
+    if(!expanded) return i * BADGE_STACK_PEEK;
+    const off = cursor;
+    cursor += card.__stackHeight + BADGE_STACK_GAP;
+    return off;
+  });
+  const totalHeight = expanded
+    ? Math.max(0, cursor - BADGE_STACK_GAP)
+    : (cards.length ? cards[0].__stackHeight + (cards.length - 1) * BADGE_STACK_PEEK : 0);
+  return { offsets, totalHeight };
+}
+
+/* animates one stack wrapper between its collapsed and expanded states —
+   used for both the click-to-spread and click-to-contract interactions,
+   which are really the same transition run in opposite directions. */
+function animateStack(wrapper, expanded){
+  if(wrapper.dataset.animating === '1') return;
+  wrapper.dataset.animating = '1';
+  const cards = Array.from(wrapper.children);
+  const { offsets, totalHeight } = computeStackOffsets(cards, expanded);
+
+  const startHeight = wrapper.getBoundingClientRect().height;
+  wrapper.style.transition = 'none';
+  wrapper.style.height = startHeight + 'px';
+  void wrapper.offsetWidth; // force reflow so the explicit start height paints before animating away
+  wrapper.style.transition = `height ${BADGE_STACK_DUR}ms cubic-bezier(.2,.75,.25,1)`;
+  wrapper.style.height = totalHeight + 'px';
+
+  cards.forEach((card, i) => {
+    card.style.zIndex = cards.length - i; // topmost card of the deck always paints above the rest, in both states
+    card.style.transition = `transform ${BADGE_STACK_DUR}ms cubic-bezier(.22,.61,.36,1), box-shadow 0.4s ease`;
+    card.style.transform = `translateY(${offsets[i]}px)`;
+  });
+
+  setTimeout(() => {
+    wrapper.style.transition = '';
+    delete wrapper.dataset.animating;
+  }, BADGE_STACK_DUR);
+}
+
+/* stack click = spread it open; a click on any one of its (now spread,
+   legible) cards = contract that rarity back into a stack. Delegated
+   once per wrapper rather than per-card, since either click just flips
+   the same expanded/collapsed state. */
+function toggleStack(wrapper){
+  const expanded = !wrapper.classList.contains('expanded');
+  wrapper.classList.toggle('expanded', expanded);
+  animateStack(wrapper, expanded);
+}
+
+/* groups this roll's landed badge cards by rarity, gathers every
+   rarity with 2+ cards into its own .badge-stack, and FLIP-animates
+   the whole badge list (the new stacks, any leftover single cards, AND
+   each card's move into its stack) from where everything currently
+   sits into its closed-up position, so the collapse reads as a smooth
+   gathering rather than a snap. Runs at most once per roll. */
+function stackBadgesByRarity(){
+  if(badgeListEl.dataset.stacked === '1') return;
+  badgeListEl.dataset.stacked = '1';
+
+  const groups = new Map();
+  Array.from(badgeListEl.children).forEach(card => {
+    if(!card.classList.contains('badge-card')) return;
+    const r = card.dataset.rarity;
+    if(!groups.has(r)) groups.set(r, []);
+    groups.get(r).push(card);
+  });
+  const stackable = Array.from(groups.values()).filter(g => g.length >= 2);
+  if(!stackable.length) return;
+
+  // snapshot every top-level item's current on-screen position before
+  // any of the DOM regrouping below happens
+  const beforeRects = new Map();
+  Array.from(badgeListEl.children).forEach(el => beforeRects.set(el, el.getBoundingClientRect()));
+
+  stackable.forEach(cardsInGroup => {
+    const anchor = cardsInGroup[0];
+    const wrapper = document.createElement('div');
+    wrapper.className = 'badge-stack';
+    badgeListEl.insertBefore(wrapper, anchor);
+    cardsInGroup.forEach(card => wrapper.appendChild(card));
+    wrapper.addEventListener('click', () => toggleStack(wrapper));
+  });
+
+  // FLIP the rest of the list (loose cards + the new wrappers) from
+  // their old positions into their now-collapsed ones
+  Array.from(badgeListEl.children).forEach(el => {
+    const before = beforeRects.get(el);
+    if(!before) return;
+    const after = el.getBoundingClientRect();
+    const dx = before.left - after.left;
+    const dy = before.top - after.top;
+    if(Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+    el.style.transition = 'none';
+    el.style.transform = `translate(${dx}px, ${dy}px)`;
+    void el.offsetWidth;
+    el.style.transition = `transform ${BADGE_STACK_DUR}ms cubic-bezier(.2,.75,.25,1)`;
+    el.style.transform = '';
+    el.addEventListener('transitionend', function clearShift(e){
+      if(e.propertyName !== 'transform') return;
+      el.style.transition = '';
+      el.removeEventListener('transitionend', clearShift);
+    });
+  });
+
+  // and FLIP each card within a new stack from its old scattered spot
+  // to its collapsed slot in the deck
+  stackable.forEach(cardsInGroup => {
+    const wrapper = cardsInGroup[0].parentElement;
+    const { offsets, totalHeight } = computeStackOffsets(cardsInGroup, false);
+    wrapper.style.height = totalHeight + 'px';
+    const wrapperRect = wrapper.getBoundingClientRect();
+    cardsInGroup.forEach((card, i) => {
+      card.style.zIndex = cardsInGroup.length - i;
+      const before = beforeRects.get(card);
+      const dx = before.left - wrapperRect.left;
+      const dy = before.top - wrapperRect.top;
+      card.style.transition = 'none';
+      card.style.transform = `translate(${dx}px, ${dy}px)`;
+      void card.offsetWidth;
+      card.style.transition = `transform ${BADGE_STACK_DUR}ms cubic-bezier(.2,.75,.25,1), box-shadow 0.4s ease`;
+      card.style.transform = `translateY(${offsets[i]}px)`;
+    });
+  });
+}
+
 /* schedules a small stagger between newly-eligible badges so they still
    land one at a time rather than all snapping in together */
 function scheduleBadgeReveals(list, word, revealedIdxs){
@@ -3088,6 +3269,7 @@ async function roll(){
     clearPendingReveals();
     resetRunningScore();
     badgeListEl.innerHTML = '';
+    delete badgeListEl.dataset.stacked;
     breakdownSubEl.textContent = 'Rolling…';
     enterRollFocus();
     await expandPillToTiles();
@@ -3117,6 +3299,7 @@ async function roll(){
     clearPendingReveals();
     resetRunningScore();
     badgeListEl.innerHTML = '';
+    delete badgeListEl.dataset.stacked;
     breakdownSubEl.textContent = 'Dealing…';
     enterRollFocus();
     await expandPillToTiles();
@@ -3792,6 +3975,11 @@ function showPercentilePlate(){
   percentilePlate.classList.remove('just-appeared');
   void percentilePlate.offsetWidth;
   percentilePlate.classList.add('just-appeared');
+
+  /* group same-rarity badges into stacks a beat after this box appears,
+     so the collapse reads as a follow-up tidy-up rather than competing
+     with the percentile reveal itself for attention */
+  setTimeout(stackBadgesByRarity, 300);
 }
 
 authBtn.addEventListener('click', () => openModal('authModal'));
