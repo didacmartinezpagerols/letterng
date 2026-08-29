@@ -1212,6 +1212,12 @@ body.dark .word-content span{ color: #17181c; }
 .badge-stack.expanded .badge-card{
   box-shadow: none;
 }
+/* a spread-open card that still belongs to a rarity group (i.e. clicking
+   it re-collapses that rarity back into a stack) — same click affordance
+   the collapsed stack itself has. */
+.badge-card.stack-member{
+  cursor: pointer;
+}
 
 
 .badge-titles{
@@ -2958,19 +2964,31 @@ function appendBadgeCard(m, word, revealedIdxs, gen){
    different layout modes, and the surrounding badge list (including
    other stacks) is FLIP-animated too so nothing else in the list
    snaps into its new spot the instant the DOM changes land. */
-const BADGE_STACK_PEEK = 7;  // px each buried card's top edge peeks out by, once collapsed
+const BADGE_STACK_PEEK = 12; // px each buried card's top edge peeks out by, once collapsed
 const BADGE_STACK_GAP = 10;  // px gap between cards once a stack is spread open
-const BADGE_STACK_DUR = 500; // ms for both stack-forming and spread/contract animations
+const BADGE_STACK_DUR = 550; // ms for both stack-forming and spread/contract animations
+/* one shared easing curve for every piece of the stack animation (wrapper
+   height, card transforms) — a smooth, gently-decelerating "ease out" with
+   no overshoot. Previously the height and the card transforms each had
+   their own slightly different curve, which read as a bit uneven since
+   the deck's outline and its cards were never quite in step; sharing one
+   curve keeps them moving together for a smoother feel. */
+const STACK_EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
 
 /* target translateY for each card in `cards`, plus the wrapper height
    that fits them, for either state — collapsed (peeking deck) or
    expanded (plain vertical list). Caches each card's own height since
-   it doesn't change between calls. */
+   it doesn't change between calls.
+   Collapsed layout: the FRONT card (index 0 — the one on top, fully
+   opaque and clickable) sits at the BOTTOM of the deck's bounding box,
+   with each buried card behind it shifted further up — so the peeking
+   edges show above the front card, like a hand of cards fanned upward,
+   rather than trailing out beneath it. */
 function computeStackOffsets(cards, expanded){
   let cursor = 0;
   const offsets = cards.map((card, i) => {
     if(card.__stackHeight === undefined) card.__stackHeight = card.getBoundingClientRect().height;
-    if(!expanded) return i * BADGE_STACK_PEEK;
+    if(!expanded) return (cards.length - 1 - i) * BADGE_STACK_PEEK;
     const off = cursor;
     cursor += card.__stackHeight + BADGE_STACK_GAP;
     return off;
@@ -2994,12 +3012,12 @@ function animateStack(wrapper, expanded){
   wrapper.style.transition = 'none';
   wrapper.style.height = startHeight + 'px';
   void wrapper.offsetWidth; // force reflow so the explicit start height paints before animating away
-  wrapper.style.transition = `height ${BADGE_STACK_DUR}ms cubic-bezier(.2,.75,.25,1)`;
+  wrapper.style.transition = `height ${BADGE_STACK_DUR}ms ${STACK_EASE}`;
   wrapper.style.height = totalHeight + 'px';
 
   cards.forEach((card, i) => {
     card.style.zIndex = cards.length - i; // topmost card of the deck always paints above the rest, in both states
-    card.style.transition = `transform ${BADGE_STACK_DUR}ms cubic-bezier(.22,.61,.36,1), box-shadow 0.4s ease`;
+    card.style.transition = `transform ${BADGE_STACK_DUR}ms ${STACK_EASE}, box-shadow 0.4s ease`;
     card.style.transform = `translateY(${offsets[i]}px)`;
   });
 
@@ -3009,22 +3027,111 @@ function animateStack(wrapper, expanded){
   }, BADGE_STACK_DUR);
 }
 
-/* stack click = spread it open; a click on any one of its (now spread,
-   legible) cards = contract that rarity back into a stack. Delegated
-   once per wrapper rather than per-card, since either click just flips
-   the same expanded/collapsed state. */
-function toggleStack(wrapper){
-  const expanded = !wrapper.classList.contains('expanded');
-  wrapper.classList.toggle('expanded', expanded);
-  animateStack(wrapper, expanded);
+/* rarity display order, rarest-first — this is the order stacks (and any
+   leftover un-stacked singles) are sorted into once the list settles into
+   "stack mode": highest rarity at the top, common at the very bottom. */
+const RARITY_ORDER = ['culture', 'legendary', 'rare', 'uncommon', 'common'];
+function rarityRank(r){
+  const i = RARITY_ORDER.indexOf(r);
+  return i === -1 ? RARITY_ORDER.length : i;
 }
 
-/* groups this roll's landed badge cards by rarity, gathers every
-   rarity with 2+ cards into its own .badge-stack, and FLIP-animates
-   the whole badge list (the new stacks, any leftover single cards, AND
-   each card's move into its stack) from where everything currently
-   sits into its closed-up position, so the collapse reads as a smooth
-   gathering rather than a snap. Runs at most once per roll. */
+/* builds a collapsed .badge-stack wrapper around `cardsInGroup` (front
+   card first), inserted just before `beforeEl` (defaults to the first
+   card). Shared by both the initial post-roll stacking and by re-
+   collapsing a group the user has spread back open. Does not animate by
+   itself — call flipCardsIntoStack afterward for that. */
+function buildStackWrapper(cardsInGroup, beforeEl){
+  const wrapper = document.createElement('div');
+  wrapper.className = 'badge-stack';
+  wrapper.dataset.rarity = cardsInGroup[0].dataset.rarity;
+  badgeListEl.insertBefore(wrapper, beforeEl || cardsInGroup[0]);
+  cardsInGroup.forEach(card => wrapper.appendChild(card));
+  wrapper.addEventListener('click', () => toggleStack(wrapper));
+  return wrapper;
+}
+
+/* FLIP-animates `cardsInGroup` (already moved into `wrapper`) from
+   whatever position each card is recorded at in `beforeRects` into its
+   collapsed slot in the deck. */
+function flipCardsIntoStack(wrapper, cardsInGroup, beforeRects){
+  const { offsets, totalHeight } = computeStackOffsets(cardsInGroup, false);
+  wrapper.style.height = totalHeight + 'px';
+  const wrapperRect = wrapper.getBoundingClientRect();
+  cardsInGroup.forEach((card, i) => {
+    card.style.zIndex = cardsInGroup.length - i;
+    const before = beforeRects.get(card);
+    const dx = before ? before.left - wrapperRect.left : 0;
+    const dy = before ? before.top - wrapperRect.top : 0;
+    card.style.transition = 'none';
+    card.style.transform = `translate(${dx}px, ${dy}px)`;
+    void card.offsetWidth;
+    card.style.transition = `transform ${BADGE_STACK_DUR}ms ${STACK_EASE}, box-shadow 0.4s ease`;
+    card.style.transform = `translateY(${offsets[i]}px)`;
+  });
+}
+
+/* stack click = spread it open. Once the spread animation finishes, the
+   cards are handed back to ordinary document flow (see settleStackToFlow)
+   instead of staying position:absolute inside the wrapper forever — that
+   leftover absolute positioning was what left them looking semi-clipped
+   after unstacking. From then on they're indistinguishable from any other
+   badge card until clicked, which gathers that rarity back into a stack. */
+function toggleStack(wrapper){
+  if(wrapper.dataset.animating === '1' || wrapper.classList.contains('expanded')) return;
+  wrapper.classList.add('expanded');
+  animateStack(wrapper, true);
+  setTimeout(() => settleStackToFlow(wrapper), BADGE_STACK_DUR);
+}
+
+/* unwraps a spread stack's cards back into the badge list as plain,
+   normally-flowing badge cards — clearing every inline style the stack
+   animation left behind (position, transform, z-index, box-shadow...) so
+   they render exactly like a badge card that was never stacked at all. */
+function settleStackToFlow(wrapper){
+  const cards = Array.from(wrapper.children);
+  cards.forEach(card => {
+    badgeListEl.insertBefore(card, wrapper);
+    card.style.position = '';
+    card.style.left = '';
+    card.style.right = '';
+    card.style.top = '';
+    card.style.margin = '';
+    card.style.transform = '';
+    card.style.zIndex = '';
+    card.style.boxShadow = '';
+    card.style.transition = '';
+    card.classList.add('stack-member');
+    card.addEventListener('click', onStackMemberClick);
+  });
+  wrapper.remove();
+}
+
+/* click on a loose, previously-stacked card: gather every card sharing
+   its rarity back into a collapsed .badge-stack, FLIP-animated in from
+   wherever each one currently sits in the flow. */
+function onStackMemberClick(e){
+  const rarity = e.currentTarget.dataset.rarity;
+  const group = Array.from(badgeListEl.querySelectorAll('.badge-card.stack-member'))
+    .filter(c => c.dataset.rarity === rarity);
+  if(group.length < 2) return;
+
+  const beforeRects = new Map(group.map(c => [c, c.getBoundingClientRect()]));
+  group.forEach(c => {
+    c.classList.remove('stack-member');
+    c.removeEventListener('click', onStackMemberClick);
+  });
+  const wrapper = buildStackWrapper(group, group[0]);
+  flipCardsIntoStack(wrapper, group, beforeRects);
+}
+
+/* groups this roll's landed badge cards by rarity, gathers every rarity
+   with 2+ cards into its own .badge-stack, sorts the whole list (stacks
+   and any leftover single cards alike) into rarity-descending order —
+   rarest at the top, common at the bottom — and FLIP-animates everything
+   (the reordering, the new stacks, AND each card's move into its stack)
+   from where it currently sits into its closed-up position, so it reads
+   as a smooth gathering rather than a snap. Runs at most once per roll. */
 function stackBadgesByRarity(){
   if(badgeListEl.dataset.stacked === '1') return;
   badgeListEl.dataset.stacked = '1';
@@ -3036,25 +3143,32 @@ function stackBadgesByRarity(){
     if(!groups.has(r)) groups.set(r, []);
     groups.get(r).push(card);
   });
-  const stackable = Array.from(groups.values()).filter(g => g.length >= 2);
-  if(!stackable.length) return;
+  if(!groups.size) return;
 
   // snapshot every top-level item's current on-screen position before
   // any of the DOM regrouping below happens
   const beforeRects = new Map();
   Array.from(badgeListEl.children).forEach(el => beforeRects.set(el, el.getBoundingClientRect()));
 
-  stackable.forEach(cardsInGroup => {
-    const anchor = cardsInGroup[0];
-    const wrapper = document.createElement('div');
-    wrapper.className = 'badge-stack';
-    badgeListEl.insertBefore(wrapper, anchor);
-    cardsInGroup.forEach(card => wrapper.appendChild(card));
-    wrapper.addEventListener('click', () => toggleStack(wrapper));
+  const stackable = [];
+  groups.forEach(cardsInGroup => {
+    if(cardsInGroup.length < 2) return;
+    const wrapper = buildStackWrapper(cardsInGroup);
+    // the wrapper itself needs a "before" position too, for the list-level
+    // FLIP below — use its front card's old slot as a stand-in
+    beforeRects.set(wrapper, beforeRects.get(cardsInGroup[0]));
+    stackable.push({ wrapper, cardsInGroup });
   });
 
-  // FLIP the rest of the list (loose cards + the new wrappers) from
-  // their old positions into their now-collapsed ones
+  // sort every top-level item — stacks and any leftover single cards —
+  // into rarity-descending order
+  const items = Array.from(badgeListEl.children)
+    .filter(el => el.classList.contains('badge-card') || el.classList.contains('badge-stack'));
+  items.sort((a, b) => rarityRank(a.dataset.rarity) - rarityRank(b.dataset.rarity));
+  items.forEach(el => badgeListEl.appendChild(el));
+
+  // FLIP the whole list (loose cards + the new/reordered wrappers) from
+  // their old positions into their now-sorted, collapsed ones
   Array.from(badgeListEl.children).forEach(el => {
     const before = beforeRects.get(el);
     if(!before) return;
@@ -3065,7 +3179,7 @@ function stackBadgesByRarity(){
     el.style.transition = 'none';
     el.style.transform = `translate(${dx}px, ${dy}px)`;
     void el.offsetWidth;
-    el.style.transition = `transform ${BADGE_STACK_DUR}ms cubic-bezier(.2,.75,.25,1)`;
+    el.style.transition = `transform ${BADGE_STACK_DUR}ms ${STACK_EASE}`;
     el.style.transform = '';
     el.addEventListener('transitionend', function clearShift(e){
       if(e.propertyName !== 'transform') return;
@@ -3076,23 +3190,7 @@ function stackBadgesByRarity(){
 
   // and FLIP each card within a new stack from its old scattered spot
   // to its collapsed slot in the deck
-  stackable.forEach(cardsInGroup => {
-    const wrapper = cardsInGroup[0].parentElement;
-    const { offsets, totalHeight } = computeStackOffsets(cardsInGroup, false);
-    wrapper.style.height = totalHeight + 'px';
-    const wrapperRect = wrapper.getBoundingClientRect();
-    cardsInGroup.forEach((card, i) => {
-      card.style.zIndex = cardsInGroup.length - i;
-      const before = beforeRects.get(card);
-      const dx = before.left - wrapperRect.left;
-      const dy = before.top - wrapperRect.top;
-      card.style.transition = 'none';
-      card.style.transform = `translate(${dx}px, ${dy}px)`;
-      void card.offsetWidth;
-      card.style.transition = `transform ${BADGE_STACK_DUR}ms cubic-bezier(.2,.75,.25,1), box-shadow 0.4s ease`;
-      card.style.transform = `translateY(${offsets[i]}px)`;
-    });
-  });
+  stackable.forEach(({ wrapper, cardsInGroup }) => flipCardsIntoStack(wrapper, cardsInGroup, beforeRects));
 }
 
 /* schedules a small stagger between newly-eligible badges so they still
