@@ -1202,15 +1202,11 @@ body.dark .word-content span{ color: #17181c; }
   top: 0;
   margin-bottom: 0;
   transition: transform 0.5s cubic-bezier(.22,.61,.36,1), box-shadow 0.5s ease;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.14);
 }
 /* only the top card of a collapsed stack should feel clickable/legible;
    the peeking edges underneath are just a depth cue until spread */
 .badge-stack:not(.expanded) .badge-card:not(:first-child){
   pointer-events: none;
-}
-.badge-stack.expanded .badge-card{
-  box-shadow: none;
 }
 /* a spread-open card that still belongs to a rarity group (i.e. clicking
    it re-collapses that rarity back into a stack) — same click affordance
@@ -3071,27 +3067,46 @@ function flipCardsIntoStack(wrapper, cardsInGroup, beforeRects){
   });
 }
 
-/* stack click = spread it open. Once the spread animation finishes, the
-   cards are handed back to ordinary document flow (see settleStackToFlow)
-   instead of staying position:absolute inside the wrapper forever — that
-   leftover absolute positioning was what left them looking semi-clipped
-   after unstacking. From then on they're indistinguishable from any other
-   badge card until clicked, which gathers that rarity back into a stack. */
+/* stack click = spread it open. Rather than waiting a hardcoded duration
+   (which can fire a beat before or after the CSS transition actually
+   finishes painting, since timers and transitions aren't guaranteed to
+   line up), we hand off to ordinary document flow only once the wrapper's
+   own height transition genuinely completes — see settleStackToFlow.
+   That handoff clears the leftover absolute positioning that used to
+   leave cards looking semi-clipped after unstacking, and (per
+   settleStackToFlow) is itself bridged so nothing visibly snaps even if
+   the two layouts don't land in the exact same pixel. From then on the
+   cards are indistinguishable from any other badge card until clicked,
+   which gathers that rarity back into a stack. */
 function toggleStack(wrapper){
   if(wrapper.dataset.animating === '1' || wrapper.classList.contains('expanded')) return;
   wrapper.classList.add('expanded');
   animateStack(wrapper, true);
-  setTimeout(() => settleStackToFlow(wrapper), BADGE_STACK_DUR);
+  wrapper.addEventListener('transitionend', function onSpreadDone(e){
+    if(e.propertyName !== 'height' || e.target !== wrapper) return;
+    wrapper.removeEventListener('transitionend', onSpreadDone);
+    settleStackToFlow(wrapper);
+  });
 }
 
 /* unwraps a spread stack's cards back into the badge list as plain,
    normally-flowing badge cards — clearing every inline style the stack
-   animation left behind (position, transform, z-index, box-shadow...) so
-   they render exactly like a badge card that was never stacked at all. */
+   animation left behind (position, transform, z-index...) so they render
+   exactly like a badge card that was never stacked at all. The spread
+   animation's per-card transform targets are already meant to land each
+   card exactly where it'll sit in normal flow, but rather than trust
+   that to be pixel-perfect (rounding, etc.), this snapshots each card's
+   on-screen spot right before the handoff and, if the true flow position
+   comes out even slightly different, bridges the gap with one more
+   short transition instead of letting it jump — so the whole spread,
+   start to finish, always reads as one continuous, smooth motion. */
 function settleStackToFlow(wrapper){
   const cards = Array.from(wrapper.children);
+  const beforeRects = new Map(cards.map(c => [c, c.getBoundingClientRect()]));
+
   cards.forEach(card => {
     badgeListEl.insertBefore(card, wrapper);
+    card.style.transition = 'none';
     card.style.position = '';
     card.style.left = '';
     card.style.right = '';
@@ -3100,11 +3115,31 @@ function settleStackToFlow(wrapper){
     card.style.transform = '';
     card.style.zIndex = '';
     card.style.boxShadow = '';
-    card.style.transition = '';
-    card.classList.add('stack-member');
-    card.addEventListener('click', onStackMemberClick);
   });
   wrapper.remove();
+
+  cards.forEach(card => {
+    card.classList.add('stack-member');
+    card.addEventListener('click', onStackMemberClick);
+
+    const before = beforeRects.get(card);
+    const after = card.getBoundingClientRect();
+    const dx = before.left - after.left;
+    const dy = before.top - after.top;
+    if(Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5){
+      card.style.transition = '';
+      return;
+    }
+    card.style.transform = `translate(${dx}px, ${dy}px)`;
+    void card.offsetWidth;
+    card.style.transition = `transform ${BADGE_STACK_DUR}ms ${STACK_EASE}`;
+    card.style.transform = '';
+    card.addEventListener('transitionend', function clearShift(e){
+      if(e.propertyName !== 'transform') return;
+      card.style.transition = '';
+      card.removeEventListener('transitionend', clearShift);
+    });
+  });
 }
 
 /* click on a loose, previously-stacked card: gather every card sharing
