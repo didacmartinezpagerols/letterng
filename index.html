@@ -355,6 +355,7 @@ body, body *{ transition: background-color 0.3s ease, color 0.3s ease, border-co
 }
 .corner-hint-br{ right: -14px; bottom: -14px; }
 .corner-hint-tl{ top: -14px; left: -14px; }
+.corner-hint-tr{ top: -14px; right: -14px; }
 .corner-hint-hit{
   fill: none;
   stroke: transparent;
@@ -382,6 +383,10 @@ body.dark .corner-hint-line{
 }
 .corner-hint-tl:has(.corner-hint-hit:hover) .corner-hint-line,
 .game-card:has(.graph-zone:hover) .corner-hint-tl .corner-hint-line{
+  stroke-width: 4.6;
+}
+.corner-hint-tr:has(.corner-hint-hit:hover) .corner-hint-line,
+.game-card:has(.leaderboard-zone:hover) .corner-hint-tr .corner-hint-line{
   stroke-width: 4.6;
 }
 
@@ -413,6 +418,12 @@ body.dark .corner-hint-line{
   pointer-events: none;
 }
 .game-card.graph-mode .corner-hint-br .corner-hint-line{
+  opacity: 0;
+}
+.game-card.leaderboard-mode .corner-hint-br .corner-hint-hit{
+  pointer-events: none;
+}
+.game-card.leaderboard-mode .corner-hint-br .corner-hint-line{
   opacity: 0;
 }
 
@@ -466,6 +477,9 @@ body.dark .corner-hint-line{
   opacity: 0.75;
 }
 .game-card.graph-mode .corner-roll-label.visible{
+  opacity: 0;
+}
+.game-card.leaderboard-mode .corner-roll-label.visible{
   opacity: 0;
 }
 /* while rolling / dealing badges: the card shrinks down to hug just the
@@ -531,6 +545,22 @@ body.dark .corner-hint-line{
   opacity: 0;
 }
 .game-card.graph-mode #distributionBlock{
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+/* ---------- leaderboard view: swaps in for the tiles when the
+   top-right corner (.leaderboard-zone) is tapped. Same mechanism as
+   #distributionBlock above, just its own block/class pair. ---------- */
+#leaderboardBlock{
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.game-card.leaderboard-mode #gameView{
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+.game-card.leaderboard-mode #leaderboardBlock{
   grid-template-rows: 1fr;
   opacity: 1;
 }
@@ -628,6 +658,11 @@ body.dark .corner-hint-line{
   line-height: 1.5;
   margin-top: 10px;
   max-width: 320px;
+  /* reserved for the tallest of the default blurb / hover-preview
+     strings (see rollZone/graphZone mouseenter handlers in JS), so
+     swapping the text on hover never changes the box's height and
+     shifts the tiles/footer below it. */
+  min-height: 3em;
 }
 
 /* ---------- roll pill: idle state (a word) morphs into the 5-tile
@@ -901,6 +936,39 @@ body.dark .word-content span{ color: #17181c; }
   cursor: default;
 }
 .game-card.graph-mode .roll-zone{
+  pointer-events: none;
+}
+
+/* invisible "safe area" over the top-right corner of the card — same
+   mechanism as .graph-zone, but tapping it swaps the card's contents
+   over to today's leaderboard (see .leaderboard-mode below) instead.
+   Disabled the same moments .roll-zone is, so you can't switch views
+   mid-roll; and while the leaderboard is showing, .roll-zone itself is
+   disabled (see .game-card.leaderboard-mode .roll-zone) so a tap meant
+   to dismiss it can't accidentally trigger a roll. */
+.leaderboard-zone{
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 40%;
+  height: 30%;
+  min-width: 100px;
+  min-height: 70px;
+  border-radius: 0 26px 0 0; /* matches the card's own corner radius */
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.leaderboard-zone:hover{
+  background: transparent;
+}
+.leaderboard-zone:active{
+  background: transparent;
+}
+.leaderboard-zone.disabled{
+  pointer-events: none;
+  cursor: default;
+}
+.game-card.leaderboard-mode .roll-zone{
   pointer-events: none;
 }
 
@@ -1693,6 +1761,45 @@ body.dark .word-content span{ color: #17181c; }
   color: var(--legendary-text);
 }
 
+/* ---------- leaderboard word display: a single box holding the whole
+   word (mirrors the idle pill's #wordContent/#wordSpan look) instead
+   of the old per-letter tile row. Reuses the tile glimmer keyframes
+   (glimmerBoxStrong/Soft for the box, word-tile-letter(-soft) for the
+   letters) so the glare timing/feel stays identical to before. ---------- */
+.word-box{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink: 0;
+  padding: 8px 20px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  font-family:'Space Grotesk', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.word-box-lg{
+  padding: 12px 26px;
+  border-radius: 14px;
+  font-size: 1.5rem;
+  animation: glimmerBoxStrong 2.8s ease-in-out infinite;
+}
+.word-box-soft{
+  font-size: 0.95rem;
+  animation: glimmerBoxSoft 2.8s ease-in-out infinite;
+}
+/* profanity filter, box version: mirrors .word-tile-censor — the word
+   renders plain (no glimmer) for 1s, then the whole box (background +
+   border + inherited letter color) fades to solid black, making the
+   word unreadable. */
+.word-box.word-box-censor{
+  animation: wordTileCensorFade 0.45s ease forwards;
+  animation-delay: 1s;
+}
+
 /* ---------- highscore flash ---------- */
 @keyframes flashHighscore{
   0%   { background: var(--card); }
@@ -1786,7 +1893,7 @@ body.dark .word-content span{ color: #17181c; }
       <div class="collapse-block" id="introBlock">
         <div>
           <h1 class="game-title">letterng</h1>
-          <p class="game-sub">Roll five letters. Chase words, patterns, and pure luck across every rule in the book.</p>
+          <p class="game-sub" id="gameSub">Roll five letters. Chase words, patterns, and pure luck across every rule in the book.</p>
         </div>
       </div>
 
@@ -1802,8 +1909,7 @@ body.dark .word-content span{ color: #17181c; }
         <div>
           <div class="card-footer">
             <div>
-              <div class="hint" id="rollHint">Each roll uses <b>1 credit</b>. Tap the bottom-right of the card to roll.</div>
-              <div class="hint">Tap the top-left corner for today's distribution.</div>
+              <div class="hint" id="rollHint">Each roll uses <b>1 credit</b> / get <b>2 credits</b> every 12 hours.</div>
             </div>
           </div>
         </div>
@@ -1826,6 +1932,23 @@ body.dark .word-content span{ color: #17181c; }
           <div class="distribution-empty" id="distributionEmpty" style="display:none;">No rolls yet today.</div>
         </div>
         <div class="hint distribution-hint">Tap the top-left corner to go back.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard view: swapped in over #gameView when the top-right
+       corner (.leaderboard-zone) is tapped. Same view-collapse
+       mechanism as #distributionBlock; shares its row markup with the
+       "leaderboard" text-link's modal (see leaderboardRowsHTML() in
+       JS) so both stay in sync. -->
+  <div class="view-collapse" id="leaderboardBlock">
+    <div>
+      <div class="distribution-view">
+        <div class="distribution-header">
+          <span class="distribution-title">Today's leaderboard</span>
+        </div>
+        <div id="leaderboardBlockBody"></div>
+        <div class="hint distribution-hint">Tap the top-right corner to go back.</div>
       </div>
     </div>
   </div>
@@ -1858,11 +1981,18 @@ body.dark .word-content span{ color: #17181c; }
        mechanism as .roll-zone, just the opposite corner. -->
   <div class="graph-zone" id="graphZone" role="button" aria-label="View today's score distribution"></div>
 
+  <!-- Tapping this swaps the card over to today's leaderboard (see
+       .leaderboard-zone / #leaderboardBlock above). Same invisible-zone
+       mechanism as .roll-zone / .graph-zone, opposite top corner from
+       .graph-zone. -->
+  <div class="leaderboard-zone" id="leaderboardZone" role="button" aria-label="View today's leaderboard"></div>
+
   <!-- Purely decorative iPadOS-style corner hints (see .corner-hint above) —
        concentric with the card's own 26px corner radius, floating just
        outside it. Bottom-right pairs with .roll-zone, top-left with
-       .graph-zone; each hint's hover state is wired to both its own
-       curve and its matching zone (see the :has() rules above). -->
+       .graph-zone, top-right with .leaderboard-zone; each hint's hover
+       state is wired to both its own curve and its matching zone (see
+       the :has() rules above). -->
   <svg class="corner-hint corner-hint-br" id="cornerHintBr" viewBox="0 0 40 40" aria-hidden="true">
     <path class="corner-hint-hit" id="cornerHitBr" d="M 30.07 10.94 A 32 32 0 0 1 10.94 30.07" />
     <path class="corner-hint-line" d="M 30.07 10.94 A 32 32 0 0 1 10.94 30.07" />
@@ -1871,6 +2001,11 @@ body.dark .word-content span{ color: #17181c; }
     <path class="corner-hint-hit" id="cornerHitTl" d="M 9.93 29.06 A 32 32 0 0 1 29.06 9.93" />
     <path class="corner-hint-line" d="M 9.93 29.06 A 32 32 0 0 1 29.06 9.93" />
   </svg>
+  <svg class="corner-hint corner-hint-tr" id="cornerHintTr" viewBox="0 0 40 40" aria-hidden="true">
+    <path class="corner-hint-hit" id="cornerHitTr" d="M 10.94 9.93 A 32 32 0 0 1 30.07 29.06" />
+    <path class="corner-hint-line" d="M 10.94 9.93 A 32 32 0 0 1 30.07 29.06" />
+  </svg>
+
 
   <!-- Quiet "roll" nudge tucked into the bottom-right corner, next to the
        curve. Purely decorative/informational — pointer-events:none so it
@@ -2000,10 +2135,13 @@ const wordSpanEl = document.getElementById('wordSpan');
 const tilesEl = document.getElementById('tiles');
 const rollZone = document.getElementById('rollZone');
 const graphZone = document.getElementById('graphZone');
+const gameSubEl = document.getElementById('gameSub');
 const cornerHintBr = document.getElementById('cornerHintBr');
 const cornerHintTl = document.getElementById('cornerHintTl');
+const cornerHintTr = document.getElementById('cornerHintTr');
 const cornerHitBr = document.getElementById('cornerHitBr');
 const cornerHitTl = document.getElementById('cornerHitTl');
+const cornerHitTr = document.getElementById('cornerHitTr');
 const cornerRollLabelEl = document.getElementById('cornerRollLabel');
 const distributionChartEl = document.getElementById('distributionChart');
 const distributionCountEl = document.getElementById('distributionCount');
@@ -2233,31 +2371,31 @@ function isCensoredWord(word){
   return !!word && CENSORED_WORDS.has(word.toUpperCase());
 }
 
-/* renders a word as a row of small bordered letter tiles.
-   tier: 'top1' (big tiles, strongest glimmer), 'soft' (normal-size
-   tiles with a dialed-back glimmer, used for #2/#3), or omitted for
-   a plain, non-animated row (e.g. the all-time best score plate).
+/* renders a word as a single box holding the whole word — the same
+   look as the idle pill's word display (#wordContent/#wordSpan) —
+   instead of a row of separate per-letter tiles.
+   tier: 'top1' (big box, strongest glimmer), 'soft' (normal-size box
+   with a dialed-back glimmer, used for #2/#3), or omitted for a
+   plain, non-animated box (e.g. the all-time best score plate).
    If the word is on the censor list, the glimmer is skipped entirely
-   and .word-tile-censor is added instead — tiles stay plainly
-   readable for 1s, then the CSS animation fades them to solid black
-   so the word becomes unreadable. */
-function wordTilesHTML(word, tier){
+   and .word-box-censor is added instead — the box stays plainly
+   readable for 1s, then the CSS animation fades it to solid black so
+   the word becomes unreadable. */
+function wordBoxHTML(word, tier){
   if(!word) return '';
   const censored = isCensoredWord(word);
   const large = tier === 'top1';
-  const tileClass = (large ? 'word-tile word-tile-lg' : (tier ? 'word-tile word-tile-soft' : 'word-tile'))
-    + (censored ? ' word-tile-censor' : '');
-  const wrapClass = large ? 'word-tiles word-tiles-lg' : 'word-tiles';
+  const boxClass = (large ? 'word-box word-box-lg' : (tier ? 'word-box word-box-soft' : 'word-box'))
+    + (censored ? ' word-box-censor' : '');
   const letterClass = large ? 'word-tile-letter' : 'word-tile-letter-soft';
-  const tiles = word.split('').map((l, i) => {
-    if(censored || !tier) return `<div class="${tileClass}">${l}</div>`;
-    /* the glimmer ripples left to right, one letter at a time — each
-       tile's border and its letter animate on the same staggered
-       delay so they pulse together. */
+  const letters = word.split('').map((l, i) => {
+    if(censored || !tier) return `<span>${l}</span>`;
+    /* the glimmer ripples left to right, one letter at a time, same
+       as the idle pill's own word glow (see renderIdleWordGlow). */
     const delay = (i * 0.09).toFixed(2) + 's';
-    return `<div class="${tileClass}" style="animation-delay:${delay}"><span class="${letterClass}" style="animation-delay:${delay}">${l}</span></div>`;
+    return `<span class="${letterClass}" style="animation-delay:${delay}">${l}</span>`;
   }).join('');
-  return `<div class="${wrapClass}">${tiles}</div>`;
+  return `<div class="${boxClass}">${letters}</div>`;
 }
 
 /* keeps the word-tile row inside the all-time best score box in sync */
@@ -2868,10 +3006,12 @@ function settleRollPhrase(){
 function hideCornerHints(){
   cornerHintBr.classList.add('hint-hidden');
   cornerHintTl.classList.add('hint-hidden');
+  cornerHintTr.classList.add('hint-hidden');
 }
 function showCornerHints(){
   cornerHintBr.classList.remove('hint-hidden');
   cornerHintTl.classList.remove('hint-hidden');
+  cornerHintTr.classList.remove('hint-hidden');
 }
 
 function hideRollPhrase(){
@@ -2912,6 +3052,7 @@ async function rollFailed(err, clearIntervals){
   spinning = false;
   rollZone.classList.remove('disabled');
   graphZone.classList.remove('disabled');
+  leaderboardZone.classList.remove('disabled');
   showCornerHints();
   updateToggleLockState();
   // the pill just showed a leftover flicker glyph (no glow, base fade)
@@ -2930,6 +3071,7 @@ async function roll(){
   spinning = true;
   rollZone.classList.add('disabled');
   graphZone.classList.add('disabled');
+  leaderboardZone.classList.add('disabled');
   updateToggleLockState();
 
   if(sequentialReveal){
@@ -3094,6 +3236,7 @@ function commitRollResult(word, matches, total, saved, credits){
   spinning = false;
   rollZone.classList.remove('disabled');
   graphZone.classList.remove('disabled');
+  leaderboardZone.classList.remove('disabled');
   showCornerHints();
   updateToggleLockState();
 
@@ -3267,6 +3410,8 @@ const authBody = document.getElementById('authBody');
 const authModalTitle = document.getElementById('authModalTitle');
 const leaderboardBody = document.getElementById('leaderboardBody');
 const openLeaderboardBtn = document.getElementById('openLeaderboardBtn');
+const leaderboardZone = document.getElementById('leaderboardZone');
+const leaderboardBlockBodyEl = document.getElementById('leaderboardBlockBody');
 
 let currentUser = null;
 let currentProfile = null; // { id, user_id, username, best_score, best_word, total_rolls }
@@ -3305,7 +3450,7 @@ function renderCredits(){
   if(currentCredits === null){
     creditsCountEl.textContent = '–';
     creditsDisplayEl.classList.remove('out-of-credits');
-    if(rollHintEl) rollHintEl.innerHTML = 'Each roll uses <b>1 credit</b>.';
+    if(rollHintEl) rollHintEl.innerHTML = 'Each roll uses <b>1 credit</b> / get <b>2 credits</b> every 12 hours.';
     return;
   }
   if(currentCredits === UNLIMITED_CREDITS){
@@ -3318,8 +3463,8 @@ function renderCredits(){
   creditsDisplayEl.classList.toggle('out-of-credits', currentCredits <= 0);
   if(rollHintEl){
     rollHintEl.innerHTML = currentCredits <= 0
-      ? 'Out of credits — back tomorrow.'
-      : 'Each roll uses <b>1 credit</b>.';
+      ? 'Out of credits — back in 12 hours.'
+      : 'Each roll uses <b>1 credit</b> / get <b>2 credits</b> every 12 hours.';
   }
 }
 
@@ -3527,18 +3672,12 @@ function renderAuthModal(){
   }
 }
 
-async function renderLeaderboardModal(){
-  leaderboardBody.innerHTML = `<div class="empty-state">Loading…</div>`;
-  const { data, error } = await sbClient.rpc('get_daily_leaderboard', { p_limit: 3 });
-  if(error){
-    leaderboardBody.innerHTML = `<div class="empty-state">Couldn't load the leaderboard.</div>`;
-    return;
-  }
-  if(!data || !data.length){
-    leaderboardBody.innerHTML = `<div class="empty-state">No scores logged today — be the first!</div>`;
-    return;
-  }
-  leaderboardBody.innerHTML = data.map((row, i) => {
+/* builds the top-3 row markup shared by the leaderboard modal (see
+   renderLeaderboardModal) and the in-card leaderboard view (see
+   renderLeaderboardBlock) — kept as one function so both always stay
+   visually in sync. */
+function leaderboardRowsHTML(data){
+  return data.map((row, i) => {
     const youClass = currentUser && row.user_id===currentUser.id ? 'you' : '';
     if(i === 0){
       // #1 gets its own layout: name row up top, then the word blown
@@ -3554,7 +3693,7 @@ async function renderLeaderboardModal(){
           <div class="leaderboard-top1-feature">
             ${row.daily_best_word ? `
               <div class="leaderboard-top1-eyebrow">today's best word</div>
-              ${wordTilesHTML(row.daily_best_word, 'top1')}
+              ${wordBoxHTML(row.daily_best_word, 'top1')}
             ` : ''}
             <div class="leaderboard-top1-score">${row.daily_best_score ?? 0}</div>
           </div>
@@ -3567,11 +3706,34 @@ async function renderLeaderboardModal(){
         <div class="leaderboard-name-block">
           <div class="leaderboard-name ${youClass}">${row.username ?? 'anonymous'}</div>
         </div>
-        ${row.daily_best_word ? wordTilesHTML(row.daily_best_word, 'soft') : ''}
+        ${row.daily_best_word ? wordBoxHTML(row.daily_best_word, 'soft') : ''}
         <div class="leaderboard-score">${row.daily_best_score ?? 0}</div>
       </div>
     `;
   }).join('');
+}
+
+/* fetches today's top 3 and returns ready-to-insert HTML — either the
+   rows themselves or an empty/error state — for whichever container
+   (modal or in-card block) is asking. */
+async function fetchLeaderboardHTML(){
+  const { data, error } = await sbClient.rpc('get_daily_leaderboard', { p_limit: 3 });
+  if(error) return `<div class="empty-state">Couldn't load the leaderboard.</div>`;
+  if(!data || !data.length) return `<div class="empty-state">No scores logged today — be the first!</div>`;
+  return leaderboardRowsHTML(data);
+}
+
+async function renderLeaderboardModal(){
+  leaderboardBody.innerHTML = `<div class="empty-state">Loading…</div>`;
+  leaderboardBody.innerHTML = await fetchLeaderboardHTML();
+}
+
+/* in-card counterpart to renderLeaderboardModal — fills #leaderboardBlockBody
+   instead of the modal, shown when .leaderboard-mode is toggled on (see
+   the leaderboardZone click handler). */
+async function renderLeaderboardBlock(){
+  leaderboardBlockBodyEl.innerHTML = `<div class="empty-state">Loading…</div>`;
+  leaderboardBlockBodyEl.innerHTML = await fetchLeaderboardHTML();
 }
 
 /* fire-and-forget: figures out where this specific roll's score would
@@ -3636,6 +3798,32 @@ authBtn.addEventListener('click', () => openModal('authModal'));
 openLeaderboardBtn.addEventListener('click', () => openModal('leaderboardModal'));
 creditsDisplayEl.addEventListener('click', () => openModal('creditsModal'));
 
+/* hovering the roll/graph corner zones previews what tapping them does,
+   by swapping the game-sub blurb under the "letterng" title for a short
+   hint — then restoring the original copy on mouseleave. */
+const defaultGameSubText = gameSubEl.textContent;
+rollZone.addEventListener('mouseenter', () => {
+  gameSubEl.textContent = 'roll a random word';
+});
+rollZone.addEventListener('mouseleave', () => {
+  gameSubEl.textContent = defaultGameSubText;
+});
+/* the pill itself is a second click target that also fires a roll
+   (see pillEl's click listener below), so it gets the same hover
+   preview as .roll-zone. */
+pillEl.addEventListener('mouseenter', () => {
+  gameSubEl.textContent = 'roll a random word';
+});
+pillEl.addEventListener('mouseleave', () => {
+  gameSubEl.textContent = defaultGameSubText;
+});
+graphZone.addEventListener('mouseenter', () => {
+  gameSubEl.textContent = "see today's score distribution";
+});
+graphZone.addEventListener('mouseleave', () => {
+  gameSubEl.textContent = defaultGameSubText;
+});
+
 rollZone.addEventListener('click', roll);
 
 /* the word box itself is a second, more discoverable way to roll —
@@ -3657,6 +3845,7 @@ pillEl.addEventListener('click', () => {
    here — same as .roll-zone / .graph-zone themselves. */
 cornerHitBr.addEventListener('click', roll);
 cornerHitTl.addEventListener('click', () => graphZone.click());
+cornerHitTr.addEventListener('click', () => leaderboardZone.click());
 
 /* ================= score distribution chart ================= */
 /* Renders get_score_distribution() (global, all players, resets daily
@@ -3737,8 +3926,28 @@ graphZone.addEventListener('click', () => {
     closeCreditsBlock();
     return;
   }
+  gameCardEl.classList.remove('leaderboard-mode');
   const showingGraph = gameCardEl.classList.toggle('graph-mode');
   if(showingGraph) renderDistributionChart();
+});
+
+/* top-right corner — same mechanism as graphZone above, opposite
+   corner, swaps in today's leaderboard instead of the score chart. */
+leaderboardZone.addEventListener('click', () => {
+  if(gameCardEl.classList.contains('credits-mode')){
+    closeCreditsBlock();
+    return;
+  }
+  gameCardEl.classList.remove('graph-mode');
+  const showingLeaderboard = gameCardEl.classList.toggle('leaderboard-mode');
+  if(showingLeaderboard) renderLeaderboardBlock();
+});
+
+leaderboardZone.addEventListener('mouseenter', () => {
+  gameSubEl.textContent = "see today's leaderboard";
+});
+leaderboardZone.addEventListener('mouseleave', () => {
+  gameSubEl.textContent = defaultGameSubText;
 });
 
 /* ================= credit packs / payments ================= */
@@ -3793,6 +4002,7 @@ function renderCreditsBlock(){
 function openCreditsBlock(){
   renderCreditsBlock();
   gameCardEl.classList.remove('graph-mode');
+  gameCardEl.classList.remove('leaderboard-mode');
   gameCardEl.classList.add('credits-mode');
 }
 
